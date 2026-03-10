@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -415,15 +417,28 @@ class _HeroBannerState extends State<_HeroBanner> {
 
   late final PageController _pageController;
   int _currentPage = 0;
+  Timer? _autoScrollTimer;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!_pageController.hasClients) {
+        return;
+      }
+      final nextPage = (_currentPage + 1) % _slides.length;
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   void dispose() {
+    _autoScrollTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
