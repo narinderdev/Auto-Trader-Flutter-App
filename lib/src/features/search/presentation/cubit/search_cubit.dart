@@ -27,11 +27,20 @@ class SearchCubit extends Cubit<SearchState> {
         _repository.fetchVehicleAttributes(),
       ]);
 
+      final filterMetadata = results[0] as FilterMetadata;
+      final vehicleAttributes = results[1] as VehicleAttributes;
+      final resolvedFilters = _resolveInitialFilters(
+        initialFilters,
+        filterMetadata,
+        vehicleAttributes,
+      );
+
       emit(
         state.copyWith(
           isLoadingMetadata: false,
-          filterMetadata: results[0] as FilterMetadata,
-          vehicleAttributes: results[1] as VehicleAttributes,
+          filterMetadata: filterMetadata,
+          vehicleAttributes: vehicleAttributes,
+          filters: resolvedFilters,
         ),
       );
 
@@ -108,5 +117,61 @@ class SearchCubit extends Cubit<SearchState> {
       return;
     }
     await loadResults(requestedPage: page);
+  }
+
+  VehicleSearchFilters _resolveInitialFilters(
+    VehicleSearchFilters filters,
+    FilterMetadata filterMetadata,
+    VehicleAttributes vehicleAttributes,
+  ) {
+    LabeledOption? resolveOption(
+      LabeledOption? current,
+      List<LabeledOption> options,
+    ) {
+      if (current == null) {
+        return null;
+      }
+      if (options.isEmpty) {
+        return current;
+      }
+      final currentId = current.id?.trim();
+      if (currentId != null && currentId.isNotEmpty) {
+        final idLower = currentId.toLowerCase();
+        for (final option in options) {
+          final optionId = option.id?.trim();
+          if (optionId != null && optionId.toLowerCase() == idLower) {
+            return option;
+          }
+        }
+      }
+      final currentLabel = current.label.trim();
+      if (currentLabel.isNotEmpty) {
+        final labelLower = currentLabel.toLowerCase();
+        for (final option in options) {
+          if (option.label.trim().toLowerCase() == labelLower) {
+            return option;
+          }
+        }
+      }
+      return current;
+    }
+
+    return filters.copyWith(
+      make: resolveOption(filters.make, filterMetadata.makes),
+      model: resolveOption(filters.model, filterMetadata.models),
+      country: resolveOption(filters.country, filterMetadata.countries),
+      bodyType: resolveOption(filters.bodyType, vehicleAttributes.bodyTypes),
+      fuel: resolveOption(filters.fuel, vehicleAttributes.fuels),
+      engineType: resolveOption(
+        filters.engineType,
+        vehicleAttributes.engineTypes,
+      ),
+      transmission: resolveOption(
+        filters.transmission,
+        vehicleAttributes.transmissions,
+      ),
+      drive: resolveOption(filters.drive, vehicleAttributes.drives),
+      color: resolveOption(filters.color, vehicleAttributes.colors),
+    );
   }
 }

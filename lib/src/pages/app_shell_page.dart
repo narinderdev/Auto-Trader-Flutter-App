@@ -181,7 +181,7 @@ class _AppHeaderState extends State<_AppHeader> {
       ),
       child: Row(
         children: [
-          Image.asset('assets/brands/logo.png', height: 28),
+          Image.asset('assets/brands/logo.png', height: 58),
           const Spacer(),
           Row(
             children: [
