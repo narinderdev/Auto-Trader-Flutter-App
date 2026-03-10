@@ -22,9 +22,13 @@ class AppShellPage extends StatefulWidget {
 
 class _AppShellPageState extends State<AppShellPage> {
   int _currentIndex = 0;
+  final GlobalKey<NavigatorState> _homeNavKey = GlobalKey<NavigatorState>();
 
   late final List<Widget> _tabs = [
-    _HomeTabNavigator(initialHomeData: widget.initialHomeData),
+    _HomeTabNavigator(
+      initialHomeData: widget.initialHomeData,
+      navigatorKey: _homeNavKey,
+    ),
     const _CalculatorTabNavigator(),
     const _SearchTabNavigator(),
     const NotificationsPage(embedded: true),
@@ -58,6 +62,9 @@ class _AppShellPageState extends State<AppShellPage> {
           setState(() {
             _currentIndex = index;
           });
+          if (index == 0) {
+            _homeNavKey.currentState?.popUntil((route) => route.isFirst);
+          }
         },
         onSearchTap: () => _showSearchOverlay(context),
       ),
@@ -111,13 +118,18 @@ class _CalculatorTabNavigator extends StatelessWidget {
 }
 
 class _HomeTabNavigator extends StatelessWidget {
-  const _HomeTabNavigator({required this.initialHomeData});
+  const _HomeTabNavigator({
+    required this.initialHomeData,
+    required this.navigatorKey,
+  });
 
   final HomeBootstrapData? initialHomeData;
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
+      key: navigatorKey,
       onGenerateRoute: (settings) {
         return MaterialPageRoute<void>(
           builder: (_) => HomePage(
