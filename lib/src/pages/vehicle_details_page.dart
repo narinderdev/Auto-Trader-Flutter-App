@@ -1105,14 +1105,38 @@ class _InlineCalculatorCardState extends State<_InlineCalculatorCard> {
             TextField(
               controller: _bidController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Enter your bid',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _country,
-              decoration: const InputDecoration(labelText: 'To country'),
+              decoration: InputDecoration(
+                labelText: 'To country',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                ),
+              ),
               items: const [
                 DropdownMenuItem(value: 'Azerbaijan', child: Text('Azerbaijan')),
                 DropdownMenuItem(value: 'Georgia', child: Text('Georgia')),
