@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../utils/formatters.dart';
+import 'auction_calculator_page.dart';
 
 class CustomsCalculatorPage extends StatefulWidget {
   const CustomsCalculatorPage({super.key, this.embedded = false});
@@ -12,146 +12,117 @@ class CustomsCalculatorPage extends StatefulWidget {
 }
 
 class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
-  final TextEditingController _priceController = TextEditingController(
-    text: '20000',
+  static const _vehicleTypes = ['Passenger car', 'SUV', 'Pickup', 'Van'];
+  static const _engineTypes = ['Select', 'Petrol', 'Diesel', 'Hybrid', 'Electric'];
+  static const _originCountries = [
+    'Other countries',
+    'United States',
+    'China',
+    'European Union',
+  ];
+
+  final TextEditingController _invoiceValueController = TextEditingController(
+    text: '0',
   );
-  final TextEditingController _shippingController = TextEditingController(
-    text: '1200',
+  final TextEditingController _transportationCostsController =
+      TextEditingController(text: '0');
+  final TextEditingController _otherExpensesController = TextEditingController(
+    text: '0',
   );
-  final TextEditingController _engineController = TextEditingController(
-    text: '2000',
+  final TextEditingController _engineCapacityController = TextEditingController(
+    text: '0',
   );
-  final TextEditingController _ageController = TextEditingController(text: '3');
+
+  String _vehicleType = _vehicleTypes.first;
+  String _engineType = _engineTypes.first;
+  String _originCountry = _originCountries.first;
+  DateTime? _issueDate;
+
+  late List<_CustomsResultItem> _resultItems;
+
+  @override
+  void initState() {
+    super.initState();
+    _resultItems = _emptyResultItems();
+  }
 
   @override
   void dispose() {
-    _priceController.dispose();
-    _shippingController.dispose();
-    _engineController.dispose();
-    _ageController.dispose();
+    _invoiceValueController.dispose();
+    _transportationCostsController.dispose();
+    _otherExpensesController.dispose();
+    _engineCapacityController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final result = _calculate();
-
     final content = ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Customs & duty calculator',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Estimate the landed cost of importing a vehicle into Azerbaijan including duty, excise, and VAT.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-              ],
-            ),
-          ),
+        const CalculatorBreadcrumb(),
+        const SizedBox(height: 18),
+        CalculatorTabs(
+          isAuctionSelected: false,
+          onSelectCustoms: () {},
+          onSelectAuction: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(
+                builder: (_) => const AuctionCalculatorPage(),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
-            final form = Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _NumberInput(
-                      label: 'Vehicle price (USD)',
-                      controller: _priceController,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    _NumberInput(
-                      label: 'Shipping & logistics (USD)',
-                      controller: _shippingController,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    _NumberInput(
-                      label: 'Engine size (cc)',
-                      controller: _engineController,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    _NumberInput(
-                      label: 'Vehicle age (years)',
-                      controller: _ageController,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ],
-                ),
-              ),
-            );
-            final summary = Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Estimated costs',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 16),
-                    ...result.rows.map(
-                      (row) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Expanded(child: Text(row.label)),
-                            Text('\$${formatWholeNumber(row.value)}'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Total landed cost',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                        Text(
-                          '\$${formatWholeNumber(result.total)}',
-                          style: const TextStyle(
-                            color: Color(0xFFB4232F),
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFCE4E8),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Text(
-                        'Figures are estimates based on current customs guidelines and may change with official tariff updates or vehicle classification.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            final form = _CustomsVehicleForm(
+              vehicleType: _vehicleType,
+              engineType: _engineType,
+              originCountry: _originCountry,
+              invoiceValueController: _invoiceValueController,
+              transportationCostsController: _transportationCostsController,
+              otherExpensesController: _otherExpensesController,
+              engineCapacityController: _engineCapacityController,
+              issueDate: _issueDate,
+              onVehicleTypeChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _vehicleType = value;
+                });
+              },
+              onEngineTypeChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _engineType = value;
+                });
+              },
+              onOriginCountryChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _originCountry = value;
+                });
+              },
+              onIssueDateTap: _pickIssueDate,
+              onCalculate: _calculate,
+              onClear: _clear,
             );
 
-            if (constraints.maxWidth < 860) {
+            final result = _CustomsResultCard(items: _resultItems);
+
+            if (constraints.maxWidth < 900) {
               return Column(
-                children: [form, const SizedBox(height: 14), summary],
+                children: [
+                  form,
+                  const SizedBox(height: 16),
+                  result,
+                ],
               );
             }
 
@@ -159,8 +130,8 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: form),
-                const SizedBox(width: 14),
-                Expanded(flex: 2, child: summary),
+                const SizedBox(width: 22),
+                Expanded(child: result),
               ],
             );
           },
@@ -173,80 +144,434 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(title: const Text('Customs Calculator')),
       body: SafeArea(child: content),
     );
   }
 
-  _CalculationResult _calculate() {
-    final price = num.tryParse(_priceController.text) ?? 0;
-    final shipping = num.tryParse(_shippingController.text) ?? 0;
-    final engineSize = num.tryParse(_engineController.text) ?? 0;
-    final age = num.tryParse(_ageController.text) ?? 0;
-
-    final cif = price + shipping;
-    final dutyRate = cif > 25000 ? 0.15 : 0.1;
-    final duty = cif * dutyRate;
-    final excise = engineSize > 3000 ? engineSize * 0.6 : engineSize * 0.3;
-    final depreciationFactor = (1 - age * 0.05).clamp(0.6, 1.0);
-    final taxableBase = (cif + duty + excise) * depreciationFactor;
-    final vat = taxableBase * 0.18;
-    final total = cif + duty + excise + vat;
-
-    return _CalculationResult(
-      rows: [
-        _CalculationRow(label: 'CIF (vehicle + shipping)', value: cif),
-        _CalculationRow(
-          label: 'Import duty (${(dutyRate * 100).round()}%)',
-          value: duty,
-        ),
-        _CalculationRow(label: 'Excise tax', value: excise),
-        _CalculationRow(
-          label:
-              'VAT (18% after depreciation factor ${(depreciationFactor * 100).round()}%)',
-          value: vat,
-        ),
-      ],
-      total: total,
+  Future<void> _pickIssueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _issueDate ?? DateTime.now(),
+      firstDate: DateTime(2018),
+      lastDate: DateTime.now(),
     );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _issueDate = picked;
+    });
+  }
+
+  void _calculate() {
+    final invoiceValue =
+        double.tryParse(_invoiceValueController.text.trim()) ?? 0;
+    final transportCost =
+        double.tryParse(_transportationCostsController.text.trim()) ?? 0;
+    final otherExpenses =
+        double.tryParse(_otherExpensesController.text.trim()) ?? 0;
+    final engineCapacity =
+        double.tryParse(_engineCapacityController.text.trim()) ?? 0;
+
+    final customsBase = invoiceValue + transportCost + otherExpenses;
+    final importDuty = customsBase * 0.15;
+    final vat = (customsBase + importDuty) * 0.18;
+    final clearanceFee = customsBase * 0.01;
+    final exciseTax = _engineType == 'Electric' ? 0.0 : engineCapacity * 0.06;
+    final certificateFee = _originCountry == 'European Union' ? 60.0 : 90.0;
+
+    setState(() {
+      _resultItems = [
+        _CustomsResultItem('Import customs duty', importDuty),
+        _CustomsResultItem('Value added tax (VAT)', vat),
+        _CustomsResultItem(
+          'Customs fees for customs clearance of goods',
+          clearanceFee,
+        ),
+        _CustomsResultItem('Excise tax', exciseTax),
+        _CustomsResultItem('Customs fees for issuing certificates', 45.0),
+        _CustomsResultItem('Electronic customs service fee', 30.0),
+        _CustomsResultItem('VAT on electronic customs services', 5.4),
+        _CustomsResultItem('Disposal fee', 25.0),
+        _CustomsResultItem('Conducting customs expertise fee', 40.0),
+        _CustomsResultItem(
+          'Certificate of compliance with standards fee',
+          certificateFee,
+        ),
+      ];
+    });
+  }
+
+  void _clear() {
+    setState(() {
+      _vehicleType = _vehicleTypes.first;
+      _engineType = _engineTypes.first;
+      _originCountry = _originCountries.first;
+      _invoiceValueController.text = '0';
+      _transportationCostsController.text = '0';
+      _otherExpensesController.text = '0';
+      _engineCapacityController.text = '0';
+      _issueDate = null;
+      _resultItems = _emptyResultItems();
+    });
+  }
+
+  List<_CustomsResultItem> _emptyResultItems() {
+    return const [
+      _CustomsResultItem('Import customs duty', 0),
+      _CustomsResultItem('Value added tax (VAT)', 0),
+      _CustomsResultItem('Customs fees for customs clearance of goods', 0),
+      _CustomsResultItem('Excise tax', 0),
+      _CustomsResultItem('Customs fees for issuing certificates', 0),
+      _CustomsResultItem('Electronic customs service fee', 0),
+      _CustomsResultItem('VAT on electronic customs services', 0),
+      _CustomsResultItem('Disposal fee', 0),
+      _CustomsResultItem('Conducting customs expertise fee', 0),
+      _CustomsResultItem(
+        'Certificate of compliance with standards fee',
+        0,
+      ),
+    ];
   }
 }
 
-class _NumberInput extends StatelessWidget {
-  const _NumberInput({
-    required this.label,
-    required this.controller,
-    required this.onChanged,
+class _CustomsVehicleForm extends StatelessWidget {
+  const _CustomsVehicleForm({
+    required this.vehicleType,
+    required this.engineType,
+    required this.originCountry,
+    required this.invoiceValueController,
+    required this.transportationCostsController,
+    required this.otherExpensesController,
+    required this.engineCapacityController,
+    required this.issueDate,
+    required this.onVehicleTypeChanged,
+    required this.onEngineTypeChanged,
+    required this.onOriginCountryChanged,
+    required this.onIssueDateTap,
+    required this.onCalculate,
+    required this.onClear,
   });
 
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+  final String vehicleType;
+  final String engineType;
+  final String originCountry;
+  final TextEditingController invoiceValueController;
+  final TextEditingController transportationCostsController;
+  final TextEditingController otherExpensesController;
+  final TextEditingController engineCapacityController;
+  final DateTime? issueDate;
+  final ValueChanged<String?> onVehicleTypeChanged;
+  final ValueChanged<String?> onEngineTypeChanged;
+  final ValueChanged<String?> onOriginCountryChanged;
+  final VoidCallback onIssueDateTap;
+  final VoidCallback onCalculate;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        onChanged: onChanged,
-        decoration: InputDecoration(labelText: label),
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE3EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Vehicle data',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF2E3440),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Calculation of customs duty and other payments of the car',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: const Color(0xFF7E8695),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const CalculatorFieldLabel('Type of vehicle'),
+          const SizedBox(height: 8),
+          CalculatorDropdown(
+            value: vehicleType,
+            items: const ['Passenger car', 'SUV', 'Pickup', 'Van'],
+            onChanged: onVehicleTypeChanged,
+          ),
+          const SizedBox(height: 16),
+          const CalculatorFieldLabel('Engine type'),
+          const SizedBox(height: 8),
+          CalculatorDropdown(
+            value: engineType,
+            items: const ['Select', 'Petrol', 'Diesel', 'Hybrid', 'Electric'],
+            onChanged: onEngineTypeChanged,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _NumberField(
+                  label: 'Invoice value (USD)',
+                  controller: invoiceValueController,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _NumberField(
+                  label: 'Transportation costs (USD)',
+                  controller: transportationCostsController,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _NumberField(
+                  label: 'Other expenses (USD)',
+                  controller: otherExpensesController,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _NumberField(
+                  label: 'Engine Capacity (cm3)',
+                  controller: engineCapacityController,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _DateField(
+                  label: 'Date of issue *',
+                  value: issueDate,
+                  onTap: onIssueDateTap,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const CalculatorFieldLabel(
+                      'About the country of origin\n(production) and the country of the sender',
+                    ),
+                    const SizedBox(height: 8),
+                    CalculatorDropdown(
+                      value: originCountry,
+                      items: const [
+                        'Other countries',
+                        'United States',
+                        'China',
+                        'European Union',
+                      ],
+                      onChanged: onOriginCountryChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              FilledButton(
+                onPressed: onCalculate,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF356CF3),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(88, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Calculate'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: onClear,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF353B48),
+                  minimumSize: const Size(74, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Clear'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _CalculationRow {
-  const _CalculationRow({required this.label, required this.value});
+class _NumberField extends StatelessWidget {
+  const _NumberField({
+    required this.label,
+    required this.controller,
+  });
 
   final String label;
-  final num value;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CalculatorFieldLabel(label),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(),
+        ),
+      ],
+    );
+  }
 }
 
-class _CalculationResult {
-  const _CalculationResult({required this.rows, required this.total});
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
-  final List<_CalculationRow> rows;
-  final num total;
+  final String label;
+  final DateTime? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value == null
+        ? 'dd/mm/yyyy'
+        : '${value!.day.toString().padLeft(2, '0')}/${value!.month.toString().padLeft(2, '0')}/${value!.year}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CalculatorFieldLabel(label),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+            ),
+            child: Text(text),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CustomsResultCard extends StatelessWidget {
+  const _CustomsResultCard({required this.items});
+
+  final List<_CustomsResultItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = items.fold<double>(0, (sum, item) => sum + item.value);
+
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE3EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Result',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF2E3440),
+            ),
+          ),
+          const SizedBox(height: 18),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: const Color(0xFF606977),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${item.value.toStringAsFixed(2)} AZN',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: const Color(0xFF606977),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDDEDDD),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Final Price',
+                    style: TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${total.toStringAsFixed(2)} AZN',
+                  style: const TextStyle(
+                    color: Color(0xFF218838),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomsResultItem {
+  const _CustomsResultItem(this.label, this.value);
+
+  final String label;
+  final double value;
 }

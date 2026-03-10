@@ -1,6 +1,20 @@
 import '../core/auto_trader_api.dart';
 import '../models/auto_trader_models.dart';
 
+class HomeBootstrapData {
+  const HomeBootstrapData({
+    required this.homepageVehicles,
+    required this.filterMetadata,
+    required this.azerbaijanFeatured,
+    required this.electricFeatured,
+  });
+
+  final List<VehicleSummary> homepageVehicles;
+  final FilterMetadata filterMetadata;
+  final List<VehicleSummary> azerbaijanFeatured;
+  final List<VehicleSummary> electricFeatured;
+}
+
 class AutoTraderRepository {
   AutoTraderRepository({AutoTraderApi? api}) : _api = api ?? AutoTraderApi();
 
@@ -30,6 +44,34 @@ class AutoTraderRepository {
 
   Future<List<VehicleSummary>> fetchElectricFeaturedVehicles() {
     return _api.fetchElectricFeaturedVehicles();
+  }
+
+  Future<HomeBootstrapData> fetchHomeBootstrapData({
+    void Function(int completedSteps, int totalSteps)? onProgress,
+  }) async {
+    const totalSteps = 4;
+    var completedSteps = 0;
+
+    Future<T> track<T>(Future<T> future) async {
+      final result = await future;
+      completedSteps += 1;
+      onProgress?.call(completedSteps, totalSteps);
+      return result;
+    }
+
+    final results = await Future.wait<dynamic>([
+      track(fetchHomepageVehicles()),
+      track(fetchFilters()),
+      track(fetchAzerbaijanFeaturedVehicles()),
+      track(fetchElectricFeaturedVehicles()),
+    ]);
+
+    return HomeBootstrapData(
+      homepageVehicles: results[0] as List<VehicleSummary>,
+      filterMetadata: results[1] as FilterMetadata,
+      azerbaijanFeatured: results[2] as List<VehicleSummary>,
+      electricFeatured: results[3] as List<VehicleSummary>,
+    );
   }
 
   Future<void> validateQuickSearch(VehicleSearchFilters filters) {

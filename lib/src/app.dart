@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 
+import 'features/wishlist/wishlist_controller.dart';
 import 'pages/splash_page.dart';
 import 'repositories/auto_trader_repository.dart';
 
@@ -37,8 +39,11 @@ class AutoTraderApp extends StatelessWidget {
       ),
     );
 
-    return RepositoryProvider(
-      create: (_) => AutoTraderRepository(),
+    return MultiProvider(
+      providers: [
+        RepositoryProvider(create: (_) => AutoTraderRepository()),
+        ChangeNotifierProvider(create: (_) => WishlistController()),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Auto Trader',

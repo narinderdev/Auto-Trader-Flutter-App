@@ -1,33 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../features/wishlist/wishlist_controller.dart';
 import '../features/home/presentation/cubit/home_cubit.dart';
 import '../features/home/presentation/cubit/home_state.dart';
 import '../models/auto_trader_models.dart';
 import '../repositories/auto_trader_repository.dart';
 import '../widgets/vehicle_card_tile.dart';
-import 'about_page.dart';
+import 'auction_calculator_page.dart';
 import 'auctions_page.dart';
-import 'coming_soon_page.dart';
 import 'contact_page.dart';
+import 'customs_calculator_page.dart';
 import 'information_page.dart';
-import 'login_page.dart';
 import 'search_page.dart';
+import 'shipping_calculator_page.dart';
 import 'text_search_page.dart';
 import 'vehicle_details_page.dart';
 
 const _dropdownMenuMaxHeight = 280.0;
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, this.showScaffold = true});
+  const HomePage({
+    super.key,
+    this.showScaffold = true,
+    this.initialData,
+  });
 
   final bool showScaffold;
+  final HomeBootstrapData? initialData;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-          HomeCubit(repository: context.read<AutoTraderRepository>())..load(),
+          HomeCubit(
+            repository: context.read<AutoTraderRepository>(),
+            initialData: initialData,
+          )..load(),
       child: _HomeView(showScaffold: showScaffold),
     );
   }
@@ -44,7 +53,6 @@ class _HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<_HomeView> {
   final ScrollController _scrollController = ScrollController();
-  final Set<String> _wishlistIds = <String>{};
 
   @override
   void dispose() {
@@ -54,13 +62,15 @@ class _HomeViewState extends State<_HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final wishlist = context.watch<WishlistController>();
+
     return BlocBuilder<HomeCubit, HomeState>(
       builder: (context, state) {
         final content = SafeArea(
           child: ColoredBox(
-            color: const Color(0xFFF3F3F5),
+            color: const Color(0xFFF9FAFB),
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? _HomeLoadingState(progress: state.loadingProgress)
                 : state.errorMessage != null
                 ? _ErrorState(
                     message: state.errorMessage!,
@@ -80,18 +90,6 @@ class _HomeViewState extends State<_HomeView> {
                               children: [
                                 _WebsiteTopSection(
                                   onHomeTap: _scrollToTop,
-                                  onAuctionTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => const AuctionsPage(),
-                                    ),
-                                  ),
-                                  onShippingTap:
-                                      () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              const InformationPage(),
-                                        ),
-                                      ),
                                   onElectricTap: () => _openSearch(
                                     const VehicleSearchFilters(
                                       fuel: LabeledOption(
@@ -100,50 +98,21 @@ class _HomeViewState extends State<_HomeView> {
                                       ),
                                     ),
                                   ),
-                                  onImportTap: _openCountryMenu,
-                                  onMoreTap: _openMoreMenu,
+                                  onMenuAction: _handleHeaderMenuAction,
+                                  onImportCountrySelected:
+                                      _openImportCountrySearch,
                                   onSearchTap: _openSearchOverlay,
                                 ),
                                 const SizedBox(height: 12),
-                                _HeroBanner(
-                                  showcaseVehicles:
-                                      state.homepageVehicles.take(2).toList(),
-                                  onBrowseAll: _openInventory,
-                                  onContactTap: _openContact,
+                                const _HeroBanner(),
+                                const SizedBox(height: 18),
+                                Transform.translate(
+                                  offset: const Offset(0, -18),
+                                  child: _QuickSearchCard(state: state),
                                 ),
-                                const SizedBox(height: 20),
-                                _QuickSearchCard(state: state),
-                                const SizedBox(height: 28),
+                                const SizedBox(height: 8),
                                 const _BrandLogoCarouselSection(),
-                                const SizedBox(height: 30),
-                                _HomepageInventorySection(
-                                  titleStart: 'Vehicles in ',
-                                  titleAccent: 'Azerbaijan',
-                                  subtitle:
-                                      'Browse vehicles in Azerbaijan, ready for you to drive home today.',
-                                  vehicles:
-                                      state.azerbaijanFeatured.take(3).toList(),
-                                  onTap: (vehicle) =>
-                                      _openDetails(context, vehicle),
-                                  onToggleWishlist: _toggleWishlist,
-                                  isWishlisted: _wishlistIds.contains,
-                                  onViewAll: () => _openSearch(
-                                    const VehicleSearchFilters(
-                                      country: LabeledOption(
-                                        label: 'Azerbaijan',
-                                        id: 'Azerbaijan',
-                                      ),
-                                    ),
-                                  ),
-                                  eyebrowBuilder: (vehicle) =>
-                                      _cardEyebrow(vehicle, preferBodyType: true),
-                                  factsBuilder: _regionalFacts,
-                                  enableImageCarousel: false,
-                                  autoPlayGallery: false,
-                                  showImageNavigation: false,
-                                  showImageIndicators: false,
-                                ),
-                                const SizedBox(height: 30),
+                                const SizedBox(height: 26),
                                 _HomepageInventorySection(
                                   titleStart: 'Electric ',
                                   titleAccent: 'Vehicles',
@@ -154,7 +123,7 @@ class _HomeViewState extends State<_HomeView> {
                                   onTap: (vehicle) =>
                                       _openDetails(context, vehicle),
                                   onToggleWishlist: _toggleWishlist,
-                                  isWishlisted: _wishlistIds.contains,
+                                  isWishlisted: wishlist.contains,
                                   onViewAll: () => _openSearch(
                                     const VehicleSearchFilters(
                                       fuel: LabeledOption(
@@ -171,6 +140,63 @@ class _HomeViewState extends State<_HomeView> {
                                   showImageNavigation: true,
                                   showImageIndicators: true,
                                 ),
+                                const SizedBox(height: 26),
+                                _HomepageInventorySection(
+                                  titleStart: 'Vehicles in ',
+                                  titleAccent: 'Azerbaijan',
+                                  subtitle:
+                                      'Browse vehicles in Azerbaijan, ready for you to drive home today.',
+                                  vehicles:
+                                      state.azerbaijanFeatured.take(3).toList(),
+                                  onTap: (vehicle) =>
+                                      _openDetails(context, vehicle),
+                                  onToggleWishlist: _toggleWishlist,
+                                  isWishlisted: wishlist.contains,
+                                  onViewAll: () => _openSearch(
+                                    const VehicleSearchFilters(
+                                      country: LabeledOption(
+                                        label: 'Azerbaijan',
+                                        id: 'Azerbaijan',
+                                      ),
+                                    ),
+                                  ),
+                                  eyebrowBuilder: (vehicle) =>
+                                      _cardEyebrow(vehicle, preferBodyType: true),
+                                  factsBuilder: _regionalFacts,
+                                  enableImageCarousel: true,
+                                  autoPlayGallery: true,
+                                  showImageNavigation: true,
+                                  showImageIndicators: true,
+                                ),
+                                const SizedBox(height: 26),
+                                _HomepageInventorySection(
+                                  titleStart: 'Cars on ',
+                                  titleAccent: 'auction',
+                                  subtitle:
+                                      'View cars in auction ready for immediate purchase with Buy It Now options.',
+                                  vehicles:
+                                      state.homepageVehicles.take(3).toList(),
+                                  onTap: (vehicle) =>
+                                      _openDetails(context, vehicle),
+                                  onToggleWishlist: _toggleWishlist,
+                                  isWishlisted: wishlist.contains,
+                                  onViewAll: _openActiveLots,
+                                  eyebrowBuilder: (vehicle) =>
+                                      _cardEyebrow(vehicle, preferBodyType: true),
+                                  factsBuilder: _regionalFacts,
+                                  enableImageCarousel: true,
+                                  autoPlayGallery: true,
+                                  showImageNavigation: true,
+                                  showImageIndicators: true,
+                                ),
+                                const SizedBox(height: 26),
+                                _HelpRequestCard(
+                                  countries: state.filterMetadata.countries,
+                                ),
+                                const SizedBox(height: 26),
+                                _SalvageInventorySection(
+                                  makes: state.filterMetadata.makes,
+                                ),
                                 const SizedBox(height: 36),
                                 _AutoTraderFooter(
                                   onHomeTap: _scrollToTop,
@@ -183,7 +209,7 @@ class _HomeViewState extends State<_HomeView> {
                                       () => Navigator.of(context).push(
                                         MaterialPageRoute<void>(
                                           builder: (_) =>
-                                              const InformationPage(),
+                                              const ShippingCalculatorPage(),
                                         ),
                                       ),
                                   onElectricTap: () => _openSearch(
@@ -196,6 +222,7 @@ class _HomeViewState extends State<_HomeView> {
                                   ),
                                   onImportTap: _openInventory,
                                 ),
+                                const SizedBox(height: 110),
                               ],
                             ),
                           ),
@@ -211,19 +238,28 @@ class _HomeViewState extends State<_HomeView> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F3F5),
+          backgroundColor: const Color(0xFFF9FAFB),
           body: content,
         );
       },
     );
   }
 
-  void _toggleWishlist(String vehicleId) {
-    setState(() {
-      if (!_wishlistIds.remove(vehicleId)) {
-        _wishlistIds.add(vehicleId);
-      }
-    });
+  void _toggleWishlist(BuildContext context, String vehicleId) {
+    final added = context.read<WishlistController>().toggle(vehicleId);
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? 'Added to wishlist' : 'Removed from wishlist',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   void _openInventory() {
@@ -244,6 +280,19 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
+  void _openActiveLots() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SearchPage(
+          initialFilters: const VehicleSearchFilters(
+            country: auctionCountryOption,
+          ),
+          title: 'Active Lots',
+        ),
+      ),
+    );
+  }
+
   void _scrollToTop() {
     _scrollController.animateTo(
       0,
@@ -252,21 +301,7 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-  Future<void> _openCountryMenu() async {
-    final selected = await showMenu<String>(
-      context: context,
-      position: const RelativeRect.fromLTRB(1000, 108, 24, 0),
-      items: const [
-        PopupMenuItem<String>(value: 'USA', child: Text('USA')),
-        PopupMenuItem<String>(value: 'Azerbaijan', child: Text('Azerbaijan')),
-        PopupMenuItem<String>(value: 'China', child: Text('China')),
-      ],
-    );
-
-    if (!mounted || selected == null) {
-      return;
-    }
-
+  void _openImportCountrySearch(String selected) {
     _openSearch(
       VehicleSearchFilters(
         country: LabeledOption(label: selected, id: selected),
@@ -274,37 +309,40 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-  Future<void> _openMoreMenu() async {
-    final selected = await showMenu<String>(
-      context: context,
-      position: const RelativeRect.fromLTRB(1120, 108, 24, 0),
-      items: const [
-        PopupMenuItem<String>(value: 'about', child: Text('About')),
-        PopupMenuItem<String>(value: 'contact', child: Text('Contact')),
-        PopupMenuItem<String>(value: 'login', child: Text('Login')),
-        PopupMenuItem<String>(value: 'coming_soon', child: Text('Coming Soon')),
-      ],
-    );
-
-    if (!mounted || selected == null) {
-      return;
-    }
-
-    switch (selected) {
-      case 'about':
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute<void>(builder: (_) => const AboutPage()));
-      case 'contact':
-        _openContact();
-      case 'login':
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute<void>(builder: (_) => const LoginPage()));
-      case 'coming_soon':
+  void _handleHeaderMenuAction(String action) {
+    switch (action) {
+      case 'auction_active_lots':
+        _openActiveLots();
+        return;
+      case 'auction_calculator':
         Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const ComingSoonPage()),
+          MaterialPageRoute<void>(
+            builder: (_) => const AuctionCalculatorPage(),
+          ),
         );
+        return;
+      case 'auction_customs_calculator':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const CustomsCalculatorPage(),
+          ),
+        );
+        return;
+      case 'shipping_calculator':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ShippingCalculatorPage(),
+          ),
+        );
+        return;
+      case 'more_contact':
+        _openContact();
+        return;
+      case 'more_information':
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const InformationPage()));
+        return;
     }
   }
 
@@ -354,126 +392,206 @@ class _HomeViewState extends State<_HomeView> {
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({
-    required this.showcaseVehicles,
-    required this.onBrowseAll,
-    required this.onContactTap,
-  });
+class _HomeLoadingState extends StatelessWidget {
+  const _HomeLoadingState({required this.progress});
 
-  final List<VehicleSummary> showcaseVehicles;
-  final VoidCallback onBrowseAll;
-  final VoidCallback onContactTap;
+  final int progress;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final vehicles = showcaseVehicles.isEmpty
-        ? const <VehicleSummary>[]
-        : showcaseVehicles;
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        color: const Color(0xFFD21739),
-      ),
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 30, 24, 22),
+        padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
+            Image.asset(
+              'assets/brands/logo.png',
+              height: 54,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '$progress%',
+              style: theme.textTheme.displaySmall?.copyWith(
+                color: const Color(0xFFD21739),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Loading home inventory and filters...',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: const Color(0xFF4B5563),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 18),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 8,
+                value: progress == 0 ? null : progress / 100,
+                backgroundColor: const Color(0xFFE5E7EB),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  Color(0xFFD21739),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroBanner extends StatefulWidget {
+  const _HeroBanner();
+
+  @override
+  State<_HeroBanner> createState() => _HeroBannerState();
+}
+
+class _HeroBannerState extends State<_HeroBanner> {
+  static const _slides = [
+    _HeroSlide(
+      leftAsset: 'assets/brands/1.webp',
+      rightAsset: 'assets/brands/2.webp',
+    ),
+    _HeroSlide(
+      leftAsset: 'assets/brands/3.webp',
+      rightAsset: 'assets/brands/4.webp',
+    ),
+    _HeroSlide(
+      leftAsset: 'assets/brands/5.webp',
+      rightAsset: 'assets/brands/6.webp',
+    ),
+  ];
+
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        width: double.infinity,
+        color: const Color(0xFFD21D39),
+        padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+        child: Stack(
+          children: [
+            Positioned(
+              left: -70,
+              top: -40,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+            ),
+            Positioned(
+              right: -50,
+              top: 20,
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            Column(
               children: [
-                Positioned(
-                  left: -70,
-                  top: -10,
-                  child: Container(
-                    width: 320,
-                    height: 320,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
+                Text(
+                  'Order your car from the USA to Azerbaijan',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
                 ),
-                Positioned(
-                  right: -50,
-                  top: 40,
-                  child: Container(
-                    width: 340,
-                    height: 340,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose from over 181 745 used Cars, Trucks and SUVs',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                Column(
-                  children: [
-                    Text(
-                      'Choose from thousands of vehicles',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Access a large selection of vehicles sourced from U.S. auctions, updated daily in one place.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.96),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        _HeroArrowButton(icon: Icons.arrow_back_rounded),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: _HeroVehicleShowcase(vehicles: vehicles),
-                        ),
-                        const SizedBox(width: 20),
-                        _HeroArrowButton(icon: Icons.arrow_forward_rounded),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        FilledButton(
-                          onPressed: onBrowseAll,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF1C1613),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 170,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _slides.length,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      final slide = _slides[index];
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Image.asset(
+                              slide.leftAsset,
+                              fit: BoxFit.contain,
                             ),
                           ),
-                          child: const Text('View Full Inventory'),
-                        ),
-                        OutlinedButton(
-                          onPressed: onContactTap,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white54),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Image.asset(
+                              slide.rightAsset,
+                              fit: BoxFit.contain,
                             ),
                           ),
-                          child: const Text('Contact Us'),
-                        ),
-                      ],
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _slides.length,
+                    (index) => Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: index == _currentPage
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.5),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -484,360 +602,375 @@ class _HeroBanner extends StatelessWidget {
   }
 }
 
+class _HeroSlide {
+  const _HeroSlide({
+    required this.leftAsset,
+    required this.rightAsset,
+  });
+
+  final String leftAsset;
+  final String rightAsset;
+}
+
 class _WebsiteTopSection extends StatelessWidget {
   const _WebsiteTopSection({
     required this.onHomeTap,
-    required this.onAuctionTap,
-    required this.onShippingTap,
     required this.onElectricTap,
-    required this.onImportTap,
-    required this.onMoreTap,
+    required this.onMenuAction,
+    required this.onImportCountrySelected,
     required this.onSearchTap,
   });
 
   final VoidCallback onHomeTap;
-  final VoidCallback onAuctionTap;
-  final VoidCallback onShippingTap;
   final VoidCallback onElectricTap;
-  final VoidCallback onImportTap;
-  final VoidCallback onMoreTap;
+  final ValueChanged<String> onMenuAction;
+  final ValueChanged<String> onImportCountrySelected;
   final VoidCallback onSearchTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF1F2F4),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      decoration: const BoxDecoration(color: Colors.white),
+      child: Row(
+        children: [
+          Image.asset('assets/brands/logo.png', height: 28),
+          const Spacer(),
+          IconButton(
+            onPressed: () => _showMenu(context),
+            icon: const Icon(Icons.menu_rounded),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: 12,
-            spacing: 18,
-            children: [
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 18,
-                runSpacing: 8,
-                children: const [
-                  _TopInfoItem(
-                    icon: Icons.call_outlined,
-                    text: '994505553485',
-                  ),
-                  _TopInfoItem(
-                    icon: Icons.mail_outline_rounded,
-                    text: 'info@autotrader.az',
-                  ),
-                ],
-              ),
-              const Wrap(
-                spacing: 10,
-                children: [
-                  _TopSocialButton(icon: Icons.camera_alt_outlined),
-                  _TopSocialButton(icon: Icons.facebook_rounded),
-                  _TopSocialButton(icon: Icons.play_arrow_rounded),
-                  _TopSocialButton(icon: Icons.chat_bubble_outline_rounded),
-                ],
-              ),
-            ],
+        ],
+      ),
+    );
+  }
+
+  void _showMenu(BuildContext context) {
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Menu',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) => _HomeMenuOverlay(
+        onClose: () => Navigator.of(context).pop(),
+        onHomeTap: onHomeTap,
+        onElectricTap: onElectricTap,
+        onMenuAction: onMenuAction,
+        onImportCountrySelected: onImportCountrySelected,
+        onSearchTap: onSearchTap,
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        final curve = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        );
+        return FadeTransition(
+          opacity: curve,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, -0.02),
+              end: Offset.zero,
+            ).animate(curve),
+            child: child,
           ),
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              top: BorderSide(color: Color(0xFFE4E7F4)),
-              bottom: BorderSide(color: Color(0xFFE4E7F4)),
+        );
+      },
+    );
+  }
+}
+
+class _HomeMenuOverlay extends StatefulWidget {
+  const _HomeMenuOverlay({
+    required this.onClose,
+    required this.onHomeTap,
+    required this.onElectricTap,
+    required this.onMenuAction,
+    required this.onImportCountrySelected,
+    required this.onSearchTap,
+  });
+
+  final VoidCallback onClose;
+  final VoidCallback onHomeTap;
+  final VoidCallback onElectricTap;
+  final ValueChanged<String> onMenuAction;
+  final ValueChanged<String> onImportCountrySelected;
+  final VoidCallback onSearchTap;
+
+  @override
+  State<_HomeMenuOverlay> createState() => _HomeMenuOverlayState();
+}
+
+class _HomeMenuOverlayState extends State<_HomeMenuOverlay> {
+  bool _auctionOpen = false;
+  bool _shippingOpen = false;
+  bool _importOpen = false;
+  bool _moreOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Material(
+        color: Colors.transparent,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/brands/logo.png', height: 28),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: widget.onClose,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Material(
+                  color: const Color(0xFF2F353B),
+                  borderRadius: BorderRadius.circular(5),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _OverlayMenuItem(
+                          label: 'Home',
+                          onTap: () {
+                            widget.onClose();
+                            widget.onHomeTap();
+                          },
+                        ),
+                        _OverlayMenuSection(
+                          label: 'Auction',
+                          isOpen: _auctionOpen,
+                          onTap: () =>
+                              setState(() => _auctionOpen = !_auctionOpen),
+                          children: [
+                            _OverlayMenuSubItem(
+                              label: 'Active Lots',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction('auction_active_lots');
+                              },
+                            ),
+                            _OverlayMenuSubItem(
+                              label: 'Calculator',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction('auction_calculator');
+                              },
+                            ),
+                            _OverlayMenuSubItem(
+                              label: 'Customs Calculator',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction(
+                                  'auction_customs_calculator',
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        _OverlayMenuSection(
+                          label: 'Shipping',
+                          isOpen: _shippingOpen,
+                          onTap: () =>
+                              setState(() => _shippingOpen = !_shippingOpen),
+                          children: [
+                            _OverlayMenuSubItem(
+                              label: 'Shipping Calculator',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction('shipping_calculator');
+                              },
+                            ),
+                          ],
+                        ),
+                        _OverlayMenuItem(
+                          label: 'Electric Vehicles',
+                          onTap: () {
+                            widget.onClose();
+                            widget.onElectricTap();
+                          },
+                        ),
+                        _OverlayMenuSection(
+                          label: 'Import Auto',
+                          isOpen: _importOpen,
+                          onTap: () =>
+                              setState(() => _importOpen = !_importOpen),
+                          children: [
+                            _OverlayMenuSubItem(
+                              label: 'USA',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onImportCountrySelected('USA');
+                              },
+                            ),
+                            _OverlayMenuSubItem(
+                              label: 'Azerbaijan',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onImportCountrySelected('Azerbaijan');
+                              },
+                            ),
+                            _OverlayMenuSubItem(
+                              label: 'China',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onImportCountrySelected('China');
+                              },
+                            ),
+                          ],
+                        ),
+                        _OverlayMenuSection(
+                          label: 'More',
+                          isOpen: _moreOpen,
+                          onTap: () => setState(() => _moreOpen = !_moreOpen),
+                          children: [
+                            _OverlayMenuSubItem(
+                              label: 'Contact',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction('more_contact');
+                              },
+                            ),
+                            _OverlayMenuSubItem(
+                              label: 'Information',
+                              onTap: () {
+                                widget.onClose();
+                                widget.onMenuAction('more_information');
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: 12,
-            spacing: 20,
-            children: [
-              const _AutoTraderWordmark(),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _HeaderLink(label: 'Home', onTap: onHomeTap),
-                  _HeaderLink(label: 'Auction', onTap: onAuctionTap),
-                  _HeaderLink(label: 'Shipping', onTap: onShippingTap),
-                  _HeaderLink(
-                    label: 'Electric Vehicles',
-                    onTap: onElectricTap,
-                  ),
-                  _HeaderDropdownLink(
-                    label: 'Import Auto',
-                    onTap: onImportTap,
-                  ),
-                  _HeaderDropdownLink(label: 'More', onTap: onMoreTap),
-                ],
-              ),
-              Wrap(
-                spacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _HeaderIconButton(
-                    icon: Icons.search_rounded,
-                    onTap: onSearchTap,
-                  ),
-                  const _HeaderIconButton(
-                    icon: Icons.notifications_none_rounded,
-                  ),
-                  const _LanguageChip(),
-                ],
-              ),
-            ],
-          ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _AutoTraderWordmark extends StatelessWidget {
-  const _AutoTraderWordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/brands/logo.png',
-      height: 34,
-      fit: BoxFit.contain,
-    );
-  }
-}
-
-class _TopInfoItem extends StatelessWidget {
-  const _TopInfoItem({
-    required this.icon,
-    required this.text,
+class _OverlayMenuSection extends StatelessWidget {
+  const _OverlayMenuSection({
+    required this.label,
+    required this.isOpen,
+    required this.onTap,
+    required this.children,
   });
 
-  final IconData icon;
-  final String text;
+  final String label;
+  final bool isOpen;
+  final VoidCallback onTap;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF2B3339)),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: const Color(0xFF2B3339),
-            decoration: TextDecoration.underline,
+        _OverlayMenuItem(
+          label: label,
+          trailing: Icon(
+            isOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+            color: Colors.white70,
           ),
+          onTap: onTap,
         ),
+        if (isOpen)
+          Padding(
+            padding: const EdgeInsets.only(left: 14),
+            child: Column(
+              children: children,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _TopSocialButton extends StatelessWidget {
-  const _TopSocialButton({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: const Color(0xFF8C92AC),
-      foregroundColor: Colors.white,
-      child: Icon(icon, size: 16),
-    );
-  }
-}
-
-class _HeaderLink extends StatelessWidget {
-  const _HeaderLink({
+class _OverlayMenuItem extends StatelessWidget {
+  const _OverlayMenuItem({
     required this.label,
     required this.onTap,
+    this.trailing,
   });
 
   final String label;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF2B3339),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 18,
-        ),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-class _HeaderDropdownLink extends StatelessWidget {
-  const _HeaderDropdownLink({
-    required this.label,
-    required this.onTap,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF2B3339),
-        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 18),
-      ),
-      iconAlignment: IconAlignment.end,
-      label: Text(label),
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(icon, color: const Color(0xFF2B3339)),
-    );
-  }
-}
-
-class _LanguageChip extends StatelessWidget {
-  const _LanguageChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE4E7F4)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.language_rounded, size: 18),
-          SizedBox(width: 6),
-          Text('EN'),
-          SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroVehicleShowcase extends StatelessWidget {
-  const _HeroVehicleShowcase({required this.vehicles});
-
-  final List<VehicleSummary> vehicles;
-
-  @override
-  Widget build(BuildContext context) {
-    final leftVehicle = vehicles.isNotEmpty ? vehicles.first : null;
-    final rightVehicle = vehicles.length > 1 ? vehicles[1] : null;
-
-    return Row(
-      children: [
-        Expanded(child: _HeroVehicleCard(vehicle: leftVehicle, dark: true)),
-        const SizedBox(width: 18),
-        Expanded(child: _HeroVehicleCard(vehicle: rightVehicle, dark: false)),
-      ],
-    );
-  }
-}
-
-class _HeroVehicleCard extends StatelessWidget {
-  const _HeroVehicleCard({
-    required this.vehicle,
-    required this.dark,
-  });
-
-  final VehicleSummary? vehicle;
-  final bool dark;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = dark ? const Color(0xFF2B2D38) : const Color(0xFFF5F5F7);
-    final imageUrl = vehicle?.image ?? '';
-
-    return Container(
-      height: 260,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        color: background,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2A000000),
-            blurRadius: 18,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: imageUrl.isEmpty
-          ? Icon(
-              Icons.directions_car_filled_rounded,
-              size: 120,
-              color: dark ? Colors.white70 : const Color(0xFF848A98),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Icons.directions_car_filled_rounded,
-                  size: 120,
-                  color: dark ? Colors.white70 : const Color(0xFF848A98),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
+            trailing ?? const SizedBox.shrink(),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _HeroArrowButton extends StatelessWidget {
-  const _HeroArrowButton({required this.icon});
+class _OverlayMenuSubItem extends StatelessWidget {
+  const _OverlayMenuSubItem({
+    required this.label,
+    required this.onTap,
+  });
 
-  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.18),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ),
-      child: Icon(icon, color: Colors.white, size: 28),
     );
   }
 }
@@ -890,7 +1023,7 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(5),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x33000000),
@@ -901,86 +1034,160 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(18),
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 620,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.search_rounded,
-                                color: Color(0xFF98A0B3),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 760;
+                        final searchField = Row(
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              color: Color(0xFF98A0B3),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _controller,
+                                autofocus: true,
+                                onSubmitted: (_) => _submit(),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  fillColor: Colors.transparent,
+                                  filled: false,
+                                  hintText:
+                                      'Search by make, model, lot, or VIN',
+                                ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _controller,
-                                  autofocus: true,
-                                  onSubmitted: (_) => _submit(),
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    fillColor: Colors.transparent,
-                                    filled: false,
-                                    hintText:
-                                        'Search by make, model, lot, or VIN',
+                            ),
+                          ],
+                        );
+
+                        final controls = Wrap(
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _OverlayCheckbox(
+                              label: 'Auction',
+                              value: _includeAuction,
+                              onChanged: (value) {
+                                setState(() {
+                                  _includeAuction = value;
+                                  if (value) {
+                                    _includeOther = false;
+                                  }
+                                });
+                              },
+                            ),
+                            _OverlayCheckbox(
+                              label: 'Other',
+                              value: _includeOther,
+                              onChanged: (value) {
+                                setState(() {
+                                  _includeOther = value;
+                                  if (value) {
+                                    _includeAuction = false;
+                                  }
+                                });
+                              },
+                            ),
+                            FilledButton(
+                              onPressed: _submit,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFE5E8F0),
+                                foregroundColor: const Color(0xFF666D7C),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                              child: const Text('Search'),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        );
+
+                        if (isCompact) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: searchField),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    icon: const Icon(Icons.close_rounded),
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  crossAxisAlignment:
+                                      WrapCrossAlignment.center,
+                                  children: [
+                                    _OverlayCheckbox(
+                                      label: 'Auction',
+                                      value: _includeAuction,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _includeAuction = value;
+                                          if (value) {
+                                            _includeOther = false;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    _OverlayCheckbox(
+                                      label: 'Other',
+                                      value: _includeOther,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _includeOther = value;
+                                          if (value) {
+                                            _includeAuction = false;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    FilledButton(
+                                      onPressed: _submit,
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFE5E8F0),
+                                        foregroundColor:
+                                            const Color(0xFF666D7C),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                      ),
+                                      child: const Text('Search'),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                          );
+                        }
+
+                        return Row(
                           children: [
-                            Checkbox(
-                              value: _includeAuction,
-                              activeColor: const Color(0xFFDF3040),
-                              onChanged: (value) {
-                                setState(() {
-                                  _includeAuction = value ?? false;
-                                });
-                              },
-                            ),
-                            const Text('Auction'),
+                            Expanded(child: searchField),
+                            const SizedBox(width: 12),
+                            controls,
                           ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Checkbox(
-                              value: _includeOther,
-                              activeColor: const Color(0xFFDF3040),
-                              onChanged: (value) {
-                                setState(() {
-                                  _includeOther = value ?? false;
-                                });
-                              },
-                            ),
-                            const Text('Other'),
-                          ],
-                        ),
-                        FilledButton(
-                          onPressed: _submit,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFE5E8F0),
-                            foregroundColor: const Color(0xFF666D7C),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: const Text('Search'),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -999,6 +1206,33 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
         includeAuction: _includeAuction,
         includeOther: _includeOther,
       ),
+    );
+  }
+}
+
+class _OverlayCheckbox extends StatelessWidget {
+  const _OverlayCheckbox({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(
+          value: value,
+          activeColor: const Color(0xFFDF3040),
+          onChanged: (nextValue) => onChanged(nextValue ?? false),
+        ),
+        Text(label),
+      ],
     );
   }
 }
@@ -1023,128 +1257,134 @@ class _QuickSearchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<HomeCubit>();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
+    final items = <Widget>[
+      _OptionDropdown(
+        title: 'All Makes',
+        value: state.selectedMake,
+        options: state.filterMetadata.makes,
+        onChanged: cubit.selectMake,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Quick search',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Make narrows model only. Country and year ranges stay global from the backend filters.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B6156)),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _OptionDropdown(
-                  title: 'Make',
-                  value: state.selectedMake,
-                  options: state.filterMetadata.makes,
-                  onChanged: cubit.selectMake,
-                ),
-                _OptionDropdown(
-                  title: 'Model',
-                  value: state.selectedModel,
-                  options: state.availableModels,
-                  onChanged: cubit.selectModel,
-                ),
-                _OptionDropdown(
-                  title: 'Country',
-                  value: state.selectedCountry,
-                  options: state.availableCountries,
-                  onChanged: cubit.selectCountry,
-                ),
-                _YearDropdown(
-                  title: 'From year',
-                  value: state.selectedFromYear,
-                  options: state.availableFromYears,
-                  onChanged: cubit.selectFromYear,
-                ),
-                _YearDropdown(
-                  title: 'To year',
-                  value: state.selectedToYear,
-                  options: state.availableToYears,
-                  onChanged: cubit.selectToYear,
-                ),
-              ],
-            ),
-            if (state.quickSearchError != null) ...[
-              const SizedBox(height: 14),
-              Text(
-                state.quickSearchError!,
-                style: const TextStyle(
-                  color: Color(0xFFB4232F),
-                  fontWeight: FontWeight.w700,
-                ),
+      _OptionDropdown(
+        title: 'All Models',
+        value: state.selectedModel,
+        options: state.availableModels,
+        onChanged: cubit.selectModel,
+      ),
+      _YearDropdown(
+        title: 'From Year',
+        value: state.selectedFromYear,
+        options: state.availableFromYears,
+        onChanged: cubit.selectFromYear,
+      ),
+      _YearDropdown(
+        title: 'To Year',
+        value: state.selectedToYear,
+        options: state.availableToYears,
+        onChanged: cubit.selectToYear,
+      ),
+      _OptionDropdown(
+        title: 'USA',
+        value: state.selectedCountry,
+        options: state.availableCountries,
+        onChanged: cubit.selectCountry,
+      ),
+    ];
+
+    return Align(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: const Color(0xFFE4E7F4)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 20,
+                offset: Offset(0, 10),
               ),
             ],
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: state.isSubmittingQuickSearch
-                        ? null
-                        : () async {
-                            final filters = await cubit.submitQuickSearch();
-                            if (filters == null || !context.mounted) {
-                              return;
-                            }
-                            await Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    SearchPage(initialFilters: filters),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 720 ? 2 : 1;
+                const spacing = 12.0;
+                final itemWidth =
+                    (constraints.maxWidth - (spacing * (columns - 1))) /
+                    columns;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        for (final item in items)
+                          SizedBox(width: itemWidth, child: item),
+                        SizedBox(
+                          width: itemWidth,
+                          child: FilledButton.icon(
+                            onPressed: state.isSubmittingQuickSearch
+                                ? null
+                                : () async {
+                                    final filters =
+                                        await cubit.submitQuickSearch();
+                                    if (filters == null || !context.mounted) {
+                                      return;
+                                    }
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            SearchPage(initialFilters: filters),
+                                      ),
+                                    );
+                                  },
+                            icon: state.isSubmittingQuickSearch
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.search_rounded, size: 18),
+                            label: const Text('Search'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFD21D39),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
                               ),
-                            );
-                          },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFDF3040),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(54),
-                    ),
-                    child: state.isSubmittingQuickSearch
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
                             ),
-                          )
-                        : const Text('Find cars'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                TextButton(
-                  onPressed: cubit.clearQuickSearch,
-                  child: const Text('Clear'),
-                ),
-              ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (state.quickSearchError != null) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        state.quickSearchError!,
+                        style: const TextStyle(
+                          color: Color(0xFFB4232F),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1174,7 +1414,7 @@ class _HomepageInventorySection extends StatelessWidget {
   final String subtitle;
   final List<VehicleSummary> vehicles;
   final ValueChanged<VehicleSummary> onTap;
-  final ValueChanged<String> onToggleWishlist;
+  final void Function(BuildContext context, String vehicleId) onToggleWishlist;
   final bool Function(String) isWishlisted;
   final VoidCallback onViewAll;
   final String Function(VehicleSummary vehicle) eyebrowBuilder;
@@ -1189,6 +1429,8 @@ class _HomepageInventorySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _SectionAccent(),
+        const SizedBox(height: 8),
         Text.rich(
           TextSpan(
             children: [
@@ -1202,7 +1444,7 @@ class _HomepageInventorySection extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
             color: const Color(0xFF202124),
             fontWeight: FontWeight.w900,
-            height: 1.1,
+            height: 1.05,
           ),
         ),
         const SizedBox(height: 8),
@@ -1215,8 +1457,11 @@ class _HomepageInventorySection extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         if (vehicles.isEmpty)
-          const Card(
-            child: Padding(
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: const Padding(
               padding: EdgeInsets.all(18),
               child: Text('No vehicles available from this endpoint yet.'),
             ),
@@ -1235,13 +1480,14 @@ class _HomepageInventorySection extends StatelessWidget {
                   vehicle: vehicle,
                   onTap: () => onTap(vehicle),
                   isWishlisted: isWishlisted(vehicle.id),
-                  onToggleWishlist: () => onToggleWishlist(vehicle.id),
+                  onToggleWishlist: () => onToggleWishlist(context, vehicle.id),
                   eyebrowLabel: eyebrowBuilder(vehicle),
                   facts: factsBuilder(vehicle),
                   enableImageCarousel: enableImageCarousel,
                   autoPlayGallery: autoPlayGallery,
                   showImageNavigation: showImageNavigation,
                   showImageIndicators: showImageIndicators,
+                  cardRadius: 5,
                 );
               }).toList();
 
@@ -1275,17 +1521,18 @@ class _HomepageInventorySection extends StatelessWidget {
           ),
         const SizedBox(height: 24),
         Center(
-          child: FilledButton(
+          child: FilledButton.icon(
             onPressed: onViewAll,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFDF3040),
+              backgroundColor: const Color(0xFFD21D39),
               foregroundColor: Colors.white,
               minimumSize: const Size(300, 54),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(5),
               ),
             ),
-            child: const Text('View Full Inventory'),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            label: const Text('View Inventory'),
           ),
         ),
       ],
@@ -1293,40 +1540,404 @@ class _HomepageInventorySection extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
+class _HelpRequestCard extends StatefulWidget {
+  const _HelpRequestCard({required this.countries});
 
-  final String title;
-  final String subtitle;
-  final Widget child;
+  final List<LabeledOption> countries;
+
+  @override
+  State<_HelpRequestCard> createState() => _HelpRequestCardState();
+}
+
+class _HelpRequestCardState extends State<_HelpRequestCard> {
+  late final TextEditingController _nameController;
+  String? _selectedCountryKey;
+  bool _isVerified = false;
+  bool _hasName = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _nameController.addListener(_handleNameChanged);
+  }
+
+  @override
+  void dispose() {
+    _nameController
+      ..removeListener(_handleNameChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleNameChanged() {
+    final hasName = _nameController.text.trim().isNotEmpty;
+    if (hasName == _hasName) {
+      return;
+    }
+    setState(() {
+      _hasName = hasName;
+      if (_hasName && _selectedCountryKey == null) {
+        _selectedCountryKey = _defaultCountryKey(widget.countries);
+      }
+    });
+  }
+
+  String? _defaultCountryKey(List<LabeledOption> countries) {
+    if (countries.isEmpty) {
+      return null;
+    }
+    final preferred = countries.firstWhere(
+      (option) => option.label.toLowerCase() == 'azerbaijan',
+      orElse: () => countries.firstWhere(
+        (option) => option.label.toLowerCase() == 'usa',
+        orElse: () => countries.first,
+      ),
+    );
+    return _optionKey(preferred);
+  }
+
+  String? _resolveCountryKey(List<LabeledOption> countries) {
+    if (countries.isEmpty) {
+      return null;
+    }
+    if (!_hasName) {
+      return null;
+    }
+    if (_selectedCountryKey != null &&
+        countries.any((option) => _optionKey(option) == _selectedCountryKey)) {
+      return _selectedCountryKey;
+    }
+    return _defaultCountryKey(countries);
+  }
+
+  String? _countryDialCode(String? label) {
+    if (label == null || label.trim().isEmpty) {
+      return null;
+    }
+    final normalized = label.trim().toLowerCase();
+    const mapping = {
+      'azerbaijan': '+994',
+      'usa': '+1',
+      'united states': '+1',
+      'united states of america': '+1',
+      'canada': '+1',
+      'uk': '+44',
+      'united kingdom': '+44',
+      'turkey': '+90',
+      'china': '+86',
+      'germany': '+49',
+      'france': '+33',
+      'italy': '+39',
+      'spain': '+34',
+      'russia': '+7',
+      'uae': '+971',
+      'united arab emirates': '+971',
+      'japan': '+81',
+      'south korea': '+82',
+      'korea': '+82',
+      'india': '+91',
+      'pakistan': '+92',
+      'georgia': '+995',
+      'armenia': '+374',
+    };
+    return mapping[normalized];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final countries = widget.countries;
+    final selectedKey = _resolveCountryKey(countries);
+    final selectedCountry = selectedKey == null
+        ? null
+        : countries.cast<LabeledOption?>().firstWhere(
+              (option) => _optionKey(option!) == selectedKey,
+              orElse: () => null,
+            );
+    final dialCode = _countryDialCode(selectedCountry?.label);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDEDEE),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: Image.asset(
+                'assets/brands/5.webp',
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Get Expert Help for Your Vehicle Purchase',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF2B2F38),
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Enter your phone number, and our team will contact you.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF4B5563),
+                  ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                hintText: 'Your name',
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD21D39)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: ValueKey(selectedKey),
+              initialValue: selectedKey,
+              items: countries
+                  .map(
+                    (option) => DropdownMenuItem<String>(
+                      value: _optionKey(option),
+                      child: Text(option.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _hasName
+                  ? (value) {
+                      setState(() {
+                        _selectedCountryKey = value;
+                      });
+                    }
+                  : null,
+              decoration: InputDecoration(
+                hintText: _hasName ? 'Country' : 'Enter your name first',
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD21D39)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                prefixText: dialCode == null ? null : '$dialCode ',
+                hintText: '40 123 45 67',
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Color(0xFFD21D39)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: _isVerified
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFE4E7F4),
+                ),
+              ),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _isVerified = !_isVerified;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      _isVerified
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      size: 20,
+                      color: _isVerified
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF111827),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isVerified ? 'Verified' : 'Click to Verify',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: _isVerified
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFF111827),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {},
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD21D39),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              child: const Text('Request Callback'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SalvageInventorySection extends StatefulWidget {
+  const _SalvageInventorySection({required this.makes});
+
+  final List<LabeledOption> makes;
+
+  @override
+  State<_SalvageInventorySection> createState() =>
+      _SalvageInventorySectionState();
+}
+
+class _SalvageInventorySectionState extends State<_SalvageInventorySection> {
+  int _selectedIndex = 0;
+
+  static const _tabs = [
+    'Popular Makes',
+    'Body Style',
+    'Damage Type',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _selectedIndex == 0
+        ? widget.makes
+            .map((make) => _MakeCount(make.label, make.count))
+            .toList()
+        : const <_MakeCount>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+        const _SectionAccent(),
+        const SizedBox(height: 8),
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'View Full Salvage '),
+              TextSpan(
+                text: 'Auto Auction\nInventory',
+                style: const TextStyle(color: Color(0xFFDF3040)),
+              ),
+            ],
+          ),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B6156)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          children: List.generate(
+            _tabs.length,
+            (index) => ChoiceChip(
+              label: Text(_tabs[index]),
+              selected: _selectedIndex == index,
+              onSelected: (selected) {
+                if (!selected) {
+                  return;
+                }
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
+                side: const BorderSide(color: Color(0xFFE4E7F4)),
+              ),
+              selectedColor: const Color(0xFFDF3040),
+              labelStyle: TextStyle(
+                color: _selectedIndex == index ? Colors.white : null,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ),
-        const SizedBox(height: 14),
-        child,
+        const SizedBox(height: 16),
+        if (items.isEmpty)
+          Text(
+            _selectedIndex == 0
+                ? 'Loading makes from inventory...'
+                : 'More categories coming soon.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columnWidth = (constraints.maxWidth - 16) / 2;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                children: items
+                    .map(
+                      (item) => SizedBox(
+                        width: columnWidth,
+                        child: Text(
+                          item.count == null
+                              ? item.make
+                              : '${item.make} (${item.count})',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                            color: const Color(0xFF111827),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
       ],
     );
   }
+}
+
+class _MakeCount {
+  const _MakeCount(this.make, this.count);
+
+  final String make;
+  final int? count;
 }
 
 class _BrandLogoCarouselSection extends StatelessWidget {
@@ -1334,10 +1945,29 @@ class _BrandLogoCarouselSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _Section(
-      title: 'Brands',
-      subtitle: 'Static homepage logo carousel from the website design.',
-      child: _BrandLogoCarousel(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        _SectionAccent(),
+        SizedBox(height: 10),
+        _BrandLogoCarousel(),
+      ],
+    );
+  }
+}
+
+class _SectionAccent extends StatelessWidget {
+  const _SectionAccent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 3,
+      decoration: BoxDecoration(
+        color: const Color(0xFFDF3040),
+        borderRadius: BorderRadius.circular(999),
+      ),
     );
   }
 }
@@ -1413,83 +2043,55 @@ class _BrandLogoCarouselState extends State<_BrandLogoCarousel> {
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFEFEFEF),
-            borderRadius: BorderRadius.circular(24),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: const Color(0xFFE4E7F4)),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 18, 12, 18),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
             child: Column(
               children: [
                 SizedBox(
-                  height: width >= 760 ? 220 : 160,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      PageView.builder(
-                        controller: _controller,
-                        itemCount: pages.length,
-                        onPageChanged: (page) {
-                          setState(() {
-                            _currentPage = page;
-                          });
-                        },
-                        itemBuilder: (context, pageIndex) {
-                          final pageItems = pages[pageIndex];
-                          return Row(
-                            children: pageItems
-                                .map(
-                                  (item) => Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      child: _BrandLogoCard(
-                                        assetPath: item.$1,
-                                        alt: item.$2,
-                                      ),
-                                    ),
+                  height: width >= 600 ? 150 : 110,
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: pages.length,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                    },
+                    itemBuilder: (context, pageIndex) {
+                      final pageItems = pages[pageIndex];
+                      return Row(
+                        children: pageItems
+                            .map(
+                              (item) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
                                   ),
-                                )
-                                .toList(),
-                          );
-                        },
-                      ),
-                      Positioned(
-                        left: 0,
-                        child: _CarouselArrow(
-                          icon: Icons.chevron_left_rounded,
-                          onPressed: _currentPage > 0
-                              ? () => _controller.previousPage(
-                                  duration: const Duration(milliseconds: 260),
-                                  curve: Curves.easeOut,
-                                )
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        child: _CarouselArrow(
-                          icon: Icons.chevron_right_rounded,
-                          onPressed: _currentPage < pages.length - 1
-                              ? () => _controller.nextPage(
-                                  duration: const Duration(milliseconds: 260),
-                                  curve: Curves.easeOut,
-                                )
-                              : null,
-                        ),
-                      ),
-                    ],
+                                  child: _BrandLogoCard(
+                                    assetPath: item.$1,
+                                    alt: item.$2,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     pages.length,
                     (index) => Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: index == _currentPage
@@ -1522,7 +2124,7 @@ class _BrandLogoCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(5),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1555,30 +2157,6 @@ class _BrandLogoCard extends StatelessWidget {
   }
 }
 
-class _CarouselArrow extends StatelessWidget {
-  const _CarouselArrow({
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.transparent,
-        foregroundColor: onPressed == null
-            ? Colors.grey.shade400
-            : Colors.grey.shade700,
-      ),
-      icon: Icon(icon, size: 42),
-    );
-  }
-}
-
 class _AutoTraderFooter extends StatelessWidget {
   const _AutoTraderFooter({
     required this.onHomeTap,
@@ -1602,7 +2180,7 @@ class _AutoTraderFooter extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFF7F7F8),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(5),
       ),
       child: Column(
         children: [
@@ -1841,34 +2419,47 @@ class _OptionDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final selectedKey = _selectedKey(options, value);
 
-    return SizedBox(
-      width: 260,
-      child: DropdownButtonFormField<String>(
-        key: ValueKey('$title-$selectedKey'),
-        initialValue: selectedKey,
-        isExpanded: true,
-        menuMaxHeight: _dropdownMenuMaxHeight,
-        decoration: InputDecoration(labelText: title),
-        items: [
-          const DropdownMenuItem<String>(value: null, child: Text('Any')),
-          ...options.map(
-            (option) => DropdownMenuItem<String>(
-              value: _optionKey(option),
-              child: Text(option.label),
-            ),
-          ),
-        ],
-        onChanged: (key) {
-          if (key == null) {
-            onChanged(null);
-            return;
-          }
-          final selected = options
-              .where((item) => _optionKey(item) == key)
-              .firstOrNull;
-          onChanged(selected);
-        },
+    return DropdownButtonFormField<String>(
+      key: ValueKey('$title-$selectedKey'),
+      initialValue: selectedKey,
+      isExpanded: true,
+      menuMaxHeight: _dropdownMenuMaxHeight,
+      decoration: InputDecoration(
+        hintText: title,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Color(0xFFD21D39)),
+        ),
       ),
+      items: [
+        DropdownMenuItem<String>(
+          value: null,
+          child: Text(
+            title,
+            style: const TextStyle(color: Color(0xFF8B90A7)),
+          ),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String>(
+            value: _optionKey(option),
+            child: Text(option.label),
+          ),
+        ),
+      ],
+      onChanged: (key) {
+        if (key == null) {
+          onChanged(null);
+          return;
+        }
+        final selected = options
+            .where((item) => _optionKey(item) == key)
+            .firstOrNull;
+        onChanged(selected);
+      },
     );
   }
 }
@@ -1890,22 +2481,35 @@ class _YearDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final selectedValue = options.contains(value) ? value : null;
 
-    return SizedBox(
-      width: 180,
-      child: DropdownButtonFormField<int>(
-        key: ValueKey('$title-$selectedValue'),
-        initialValue: selectedValue,
-        isExpanded: true,
-        menuMaxHeight: _dropdownMenuMaxHeight,
-        decoration: InputDecoration(labelText: title),
-        items: [
-          const DropdownMenuItem<int>(value: null, child: Text('Any')),
-          ...options.map(
-            (year) => DropdownMenuItem<int>(value: year, child: Text('$year')),
-          ),
-        ],
-        onChanged: onChanged,
+    return DropdownButtonFormField<int>(
+      key: ValueKey('$title-$selectedValue'),
+      initialValue: selectedValue,
+      isExpanded: true,
+      menuMaxHeight: _dropdownMenuMaxHeight,
+      decoration: InputDecoration(
+        hintText: title,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Color(0xFFD21D39)),
+        ),
       ),
+      items: [
+        DropdownMenuItem<int>(
+          value: null,
+          child: Text(
+            title,
+            style: const TextStyle(color: Color(0xFF8B90A7)),
+          ),
+        ),
+        ...options.map(
+          (year) => DropdownMenuItem<int>(value: year, child: Text('$year')),
+        ),
+      ],
+      onChanged: onChanged,
     );
   }
 }

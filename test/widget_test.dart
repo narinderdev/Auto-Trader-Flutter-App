@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:autotrader/src/app.dart';
@@ -9,6 +8,11 @@ void main() {
 
     expect(find.byType(AutoTraderApp), findsOneWidget);
     expect(find.text('Auto Trader'), findsWidgets);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.text(
+        'Import quality vehicles with the same inventory and APIs as the website.',
+      ),
+      findsOneWidget,
+    );
   });
 }

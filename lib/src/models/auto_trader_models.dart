@@ -1,10 +1,21 @@
 class LabeledOption {
-  const LabeledOption({required this.label, this.id});
+  const LabeledOption({required this.label, this.id, this.count});
 
   final String label;
   final String? id;
+  final int? count;
 
   static List<LabeledOption> parseList(dynamic rawItems) {
+    if (rawItems is Map) {
+      rawItems =
+          rawItems['data'] ??
+          rawItems['results'] ??
+          rawItems['items'] ??
+          rawItems['list'] ??
+          rawItems['values'] ??
+          rawItems['options'];
+    }
+
     if (rawItems is! List) {
       return const <LabeledOption>[];
     }
@@ -32,7 +43,9 @@ class LabeledOption {
   static LabeledOption? _parse(dynamic item) {
     if (item is String) {
       final label = item.trim();
-      return label.isEmpty ? null : LabeledOption(label: label, id: label);
+      return label.isEmpty
+          ? null
+          : LabeledOption(label: label, id: label);
     }
     if (item is num) {
       final label = item.toString();
@@ -47,6 +60,8 @@ class LabeledOption {
       item['label'],
       item['title'],
       item['value'],
+      item['make'],
+      item['brand'],
       item['display_name'],
       item['displayName'],
       item['code'],
@@ -55,6 +70,16 @@ class LabeledOption {
     if (label == null || label.isEmpty) {
       return null;
     }
+
+    final count = _pickInt(
+      item['count'],
+      item['total'],
+      item['total_count'],
+      item['totalResults'],
+      item['total_results'],
+      item['vehicle_count'],
+      item['inventory_count'],
+    );
 
     final rawId =
         item['id'] ??
@@ -65,7 +90,7 @@ class LabeledOption {
         item['value'];
 
     final id = _normalizeString(rawId) ?? label;
-    return LabeledOption(label: label, id: id);
+    return LabeledOption(label: label, id: id, count: count);
   }
 }
 
@@ -132,12 +157,37 @@ class FilterMetadata {
   final List<int> toYears;
 
   factory FilterMetadata.fromJson(Map<String, dynamic> json) {
+    final source = json['filters'] is Map
+        ? Map<String, dynamic>.from(json['filters'] as Map)
+        : json;
     return FilterMetadata(
-      makes: LabeledOption.parseList(json['makes']),
-      models: LabeledOption.parseList(json['models']),
-      countries: LabeledOption.parseList(json['countries']),
-      fromYears: _parseYearList(json['from_years']),
-      toYears: _parseYearList(json['to_years']),
+      makes: _firstPopulatedOptions(source, const [
+        'makes',
+        'popular_makes',
+        'popularMakes',
+        'make_list',
+        'makeList',
+        'make',
+        'brands',
+      ]),
+      models: _firstPopulatedOptions(source, const [
+        'models',
+        'popular_models',
+        'popularModels',
+        'model_list',
+        'modelList',
+        'model',
+      ]),
+      countries: _firstPopulatedOptions(source, const [
+        'countries',
+        'country_list',
+        'countryList',
+        'locations',
+        'origin_countries',
+        'originCountries',
+      ]),
+      fromYears: _parseYearList(source['from_years']),
+      toYears: _parseYearList(source['to_years']),
     );
   }
 
@@ -869,6 +919,10 @@ List<String> _resolveGallery(
   final imagesList = json['images'];
   if (imagesList is List) {
     for (final item in imagesList) {
+      if (item is String) {
+        addCandidate(item);
+        continue;
+      }
       if (item is! Map) {
         continue;
       }
@@ -882,6 +936,10 @@ List<String> _resolveGallery(
   final mediaGallery = json['media_gallery'];
   if (mediaGallery is List) {
     for (final item in mediaGallery) {
+      if (item is String) {
+        addCandidate(item);
+        continue;
+      }
       if (item is! Map) {
         continue;
       }
@@ -906,6 +964,7 @@ String? _pickString([
   dynamic value6,
   dynamic value7,
   dynamic value8,
+  dynamic value9,
 ]) {
   final values = [
     value1,
@@ -916,6 +975,7 @@ String? _pickString([
     value6,
     value7,
     value8,
+    value9,
   ];
   for (final value in values) {
     final normalized = _normalizeString(value);

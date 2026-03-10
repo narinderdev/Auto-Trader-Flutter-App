@@ -20,6 +20,7 @@ class VehicleCardTile extends StatefulWidget {
     this.autoPlayGallery = false,
     this.showImageNavigation = false,
     this.showImageIndicators = false,
+    this.cardRadius = 22,
   });
 
   final VehicleSummary vehicle;
@@ -34,6 +35,7 @@ class VehicleCardTile extends StatefulWidget {
   final bool autoPlayGallery;
   final bool showImageNavigation;
   final bool showImageIndicators;
+  final double cardRadius;
 
   @override
   State<VehicleCardTile> createState() => _VehicleCardTileState();
@@ -69,10 +71,13 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
   void didUpdateWidget(covariant VehicleCardTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.vehicle.id != widget.vehicle.id ||
+        oldWidget.vehicle.gallery.length != widget.vehicle.gallery.length ||
         oldWidget.autoPlayGallery != widget.autoPlayGallery ||
         oldWidget.enableImageCarousel != widget.enableImageCarousel) {
       _currentImageIndex = 0;
-      _pageController.jumpToPage(0);
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
       _configureTimer();
     }
   }
@@ -130,16 +135,20 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
     final theme = Theme.of(context);
     final resolvedFacts = widget.facts ?? _defaultFacts(widget.vehicle);
     final label = widget.eyebrowLabel ?? _defaultEyebrow(widget.vehicle);
+    final cardRadius = widget.cardRadius;
+    final imageRadius = cardRadius;
+    final badgeRadius = cardRadius < 8 ? cardRadius : 8.0;
+    final chipRadius = cardRadius < 12 ? cardRadius : 12.0;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(cardRadius),
         onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(cardRadius),
             border: Border.all(color: const Color(0xFFD9DEE6)),
             boxShadow: const [
               BoxShadow(
@@ -171,6 +180,8 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                   showIndicators: widget.showImageIndicators && _canSlide,
                   onPrevious: _previousImage,
                   onNext: _nextImage,
+                  imageRadius: imageRadius,
+                  badgeRadius: badgeRadius,
                 ),
               ),
               Padding(
@@ -212,7 +223,10 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                         ),
                         if (widget.vehicle.year != null) ...[
                           const SizedBox(width: 12),
-                          _YearChip(year: widget.vehicle.year!),
+                          _YearChip(
+                            year: widget.vehicle.year!,
+                            radius: chipRadius,
+                          ),
                         ],
                       ],
                     ),
@@ -322,6 +336,8 @@ class _VehicleImageCarousel extends StatelessWidget {
     required this.showIndicators,
     required this.onPrevious,
     required this.onNext,
+    required this.imageRadius,
+    required this.badgeRadius,
   });
 
   final List<String> images;
@@ -335,11 +351,13 @@ class _VehicleImageCarousel extends StatelessWidget {
   final bool showIndicators;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+  final double imageRadius;
+  final double badgeRadius;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(imageRadius),
       child: AspectRatio(
         aspectRatio: 1.55,
         child: Stack(
@@ -387,7 +405,7 @@ class _VehicleImageCarousel extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: const Color(0xFFDF3040),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(badgeRadius),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -411,18 +429,25 @@ class _VehicleImageCarousel extends StatelessWidget {
                 color: Colors.white,
                 shape: const CircleBorder(),
                 elevation: 3,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onToggleWishlist,
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      isWishlisted
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      color: const Color(0xFFDF3040),
-                      size: 24,
-                    ),
+                child: IconButton(
+                  onPressed: onToggleWishlist,
+                  tooltip: isWishlisted
+                      ? 'Remove from wishlist'
+                      : 'Add to wishlist',
+                  iconSize: 24,
+                  padding: const EdgeInsets.all(10),
+                  constraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFFDF3040),
+                    shape: const CircleBorder(),
+                  ),
+                  icon: Icon(
+                    isWishlisted
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                   ),
                 ),
               ),
@@ -504,16 +529,17 @@ class _CarouselNavButton extends StatelessWidget {
 }
 
 class _YearChip extends StatelessWidget {
-  const _YearChip({required this.year});
+  const _YearChip({required this.year, required this.radius});
 
   final int year;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: const Color(0xFFDF3040)),
       ),
       child: Text(

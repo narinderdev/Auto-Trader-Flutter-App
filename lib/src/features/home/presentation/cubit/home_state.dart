@@ -5,6 +5,7 @@ import '../../../../models/auto_trader_models.dart';
 class HomeState extends Equatable {
   const HomeState({
     this.isLoading = true,
+    this.loadingProgress = 0,
     this.isSubmittingQuickSearch = false,
     this.errorMessage,
     this.quickSearchError,
@@ -21,6 +22,7 @@ class HomeState extends Equatable {
   });
 
   final bool isLoading;
+  final int loadingProgress;
   final bool isSubmittingQuickSearch;
   final String? errorMessage;
   final String? quickSearchError;
@@ -68,6 +70,7 @@ class HomeState extends Equatable {
 
   HomeState copyWith({
     bool? isLoading,
+    int? loadingProgress,
     bool? isSubmittingQuickSearch,
     Object? errorMessage = _unset,
     Object? quickSearchError = _unset,
@@ -84,6 +87,7 @@ class HomeState extends Equatable {
   }) {
     return HomeState(
       isLoading: isLoading ?? this.isLoading,
+      loadingProgress: loadingProgress ?? this.loadingProgress,
       isSubmittingQuickSearch:
           isSubmittingQuickSearch ?? this.isSubmittingQuickSearch,
       errorMessage: identical(errorMessage, _unset)
@@ -118,6 +122,7 @@ class HomeState extends Equatable {
   @override
   List<Object?> get props => [
     isLoading,
+    loadingProgress,
     isSubmittingQuickSearch,
     errorMessage,
     quickSearchError,

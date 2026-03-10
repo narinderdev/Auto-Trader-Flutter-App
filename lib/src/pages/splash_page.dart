@@ -14,17 +14,18 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  Timer? _timer;
+  Timer? _navigationTimer;
+  bool _isNavigating = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(widget.duration, _openApp);
+    _navigationTimer = Timer(widget.duration, _openAppShell);
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _navigationTimer?.cancel();
     super.dispose();
   }
 
@@ -118,15 +119,6 @@ class _SplashPageState extends State<SplashPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    const SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Colors.white,
-                      ),
-                    ),
                     const Spacer(),
                     Text(
                       'Auto Trader',
@@ -147,10 +139,11 @@ class _SplashPageState extends State<SplashPage> {
     );
   }
 
-  void _openApp() {
-    if (!mounted) {
+  void _openAppShell() {
+    if (!mounted || _isNavigating) {
       return;
     }
+    _isNavigating = true;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(builder: (_) => const AppShellPage()),
     );

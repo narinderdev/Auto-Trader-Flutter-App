@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../models/auto_trader_models.dart';
-import 'about_page.dart';
-import 'admin_shell_page.dart';
-import 'auctions_page.dart';
+import '../repositories/auto_trader_repository.dart';
 import 'coming_soon_page.dart';
-import 'contact_page.dart';
 import 'customs_calculator_page.dart';
 import 'home_page.dart';
-import 'information_page.dart';
 import 'login_page.dart';
 import 'search_page.dart';
-import 'text_search_page.dart';
 
 class AppShellPage extends StatefulWidget {
-  const AppShellPage({super.key});
+  const AppShellPage({
+    super.key,
+    this.initialHomeData,
+  });
+
+  final HomeBootstrapData? initialHomeData;
 
   @override
   State<AppShellPage> createState() => _AppShellPageState();
@@ -24,51 +23,137 @@ class _AppShellPageState extends State<AppShellPage> {
   int _currentIndex = 0;
 
   late final List<Widget> _tabs = [
-    const HomePage(showScaffold: false),
+    HomePage(showScaffold: false, initialData: widget.initialHomeData),
+    const CustomsCalculatorPage(),
     const SearchPage(showScaffold: false),
-    const AuctionsPage(embedded: true),
-    const InformationPage(embedded: true),
-    const _MorePage(),
+    const ComingSoonPage(),
+    const LoginPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final activeIndex = _currentIndex >= _tabs.length ? 0 : _currentIndex;
+
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(index: _currentIndex, children: _tabs),
+        child: IndexedStack(index: activeIndex, children: _tabs),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: _BottomNavBar(
+        currentIndex: activeIndex,
+        onTabSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+        onSearchTap: () {
+          setState(() {
+            _currentIndex = 2;
+          });
+        },
+      ),
+    );
+  }
+}
+
+class _BottomNavBar extends StatelessWidget {
+  const _BottomNavBar({
+    required this.currentIndex,
+    required this.onTabSelected,
+    required this.onSearchTap,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onTabSelected;
+  final VoidCallback onSearchTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const inactiveColor = Color(0xFF8C92AC);
+    const activeColor = Color(0xFFD21D39);
+
+    return SizedBox(
+      height: 88,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(color: Color(0xFFE4E7F4)),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _NavItem(
+                  label: 'HOME',
+                  icon: Icons.home_outlined,
+                  isActive: currentIndex == 0,
+                  onTap: () => onTabSelected(0),
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _NavItem(
+                  label: 'CALCULATOR',
+                  icon: Icons.calculate_outlined,
+                  isActive: currentIndex == 1,
+                  onTap: () => onTabSelected(1),
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                const SizedBox(width: 56),
+                _NavItem(
+                  label: 'NOTIFICATION',
+                  icon: Icons.notifications_none_rounded,
+                  isActive: currentIndex == 3,
+                  onTap: () => onTabSelected(3),
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+                _NavItem(
+                  label: 'PROFILE',
+                  icon: Icons.person_outline_rounded,
+                  isActive: currentIndex == 4,
+                  onTap: () => onTabSelected(4),
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search_rounded),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.gavel_outlined),
-            selectedIcon: Icon(Icons.gavel_rounded),
-            label: 'Auctions',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.article_outlined),
-            selectedIcon: Icon(Icons.article_rounded),
-            label: 'Info',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_rounded),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'More',
+          Positioned(
+            bottom: 40,
+            child: GestureDetector(
+              onTap: onSearchTap,
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  shape: BoxShape.circle,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Transform.translate(
+                    offset: const Offset(0, 1),
+                    child: const Icon(
+                      Icons.search_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -76,145 +161,45 @@ class _AppShellPageState extends State<AppShellPage> {
   }
 }
 
-class _MorePage extends StatelessWidget {
-  const _MorePage();
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.onTap,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final VoidCallback onTap;
+  final Color activeColor;
+  final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      _MoreEntry(
-        title: 'About',
-        subtitle: 'Company and sourcing model',
-        icon: Icons.business_outlined,
-        builder: () => const AboutPage(),
-      ),
-      _MoreEntry(
-        title: 'Contact',
-        subtitle: 'Office details and social channels',
-        icon: Icons.contact_mail_outlined,
-        builder: () => const ContactPage(),
-      ),
-      _MoreEntry(
-        title: 'Customs Calculator',
-        subtitle: 'Estimate landed import cost',
-        icon: Icons.calculate_outlined,
-        builder: () => const CustomsCalculatorPage(),
-      ),
-      _MoreEntry(
-        title: 'Text Search',
-        subtitle: 'Website free-text flow',
-        icon: Icons.text_fields_rounded,
-        builder: () => const TextSearchPage(query: 'electric suv'),
-      ),
-      _MoreEntry(
-        title: 'Login',
-        subtitle: 'Client login screen',
-        icon: Icons.lock_outline_rounded,
-        builder: () => const LoginPage(),
-      ),
-      _MoreEntry(
-        title: 'Admin Panel',
-        subtitle: 'Separate admin navigation shell',
-        icon: Icons.admin_panel_settings_outlined,
-        builder: () => const AdminShellPage(),
-      ),
-      _MoreEntry(
-        title: 'Coming Soon',
-        subtitle: 'Placeholder flow from website',
-        icon: Icons.hourglass_bottom_rounded,
-        builder: () => const ComingSoonPage(),
-      ),
-      _MoreEntry(
-        title: 'Import from USA',
-        subtitle: 'Country-filtered search shortcut',
-        icon: Icons.flag_outlined,
-        builder: () => SearchPage(
-          initialFilters: const VehicleSearchFilters(
-            country: LabeledOption(label: 'USA'),
-          ),
-        ),
-      ),
-      _MoreEntry(
-        title: 'Import from Azerbaijan',
-        subtitle: 'Country-filtered search shortcut',
-        icon: Icons.public_outlined,
-        builder: () => SearchPage(
-          initialFilters: const VehicleSearchFilters(
-            country: LabeledOption(label: 'Azerbaijan'),
-          ),
-        ),
-      ),
-      _MoreEntry(
-        title: 'Import from China',
-        subtitle: 'Country-filtered search shortcut',
-        icon: Icons.electric_car_outlined,
-        builder: () => SearchPage(
-          initialFilters: const VehicleSearchFilters(
-            country: LabeledOption(label: 'China'),
-          ),
-        ),
-      ),
-    ];
+    final color = isActive ? activeColor : inactiveColor;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        Text(
-          'More',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Public utility pages, shortcuts, and separate app sections.',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 18),
-        ...items.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFFFCE4E8),
-                  foregroundColor: const Color(0xFFB4232F),
-                  child: Icon(item.icon),
-                ),
-                title: Text(
-                  item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                subtitle: Text(item.subtitle),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => item.builder()),
-                  );
-                },
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
-
-class _MoreEntry {
-  const _MoreEntry({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.builder,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget Function() builder;
 }

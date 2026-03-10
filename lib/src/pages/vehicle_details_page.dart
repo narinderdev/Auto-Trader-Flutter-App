@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../features/vehicle_details/presentation/cubit/vehicle_details_cubit.dart';
 import '../features/vehicle_details/presentation/cubit/vehicle_details_state.dart';
+import '../features/wishlist/wishlist_controller.dart';
 import '../models/auto_trader_models.dart';
 import '../repositories/auto_trader_repository.dart';
 import '../utils/formatters.dart';
@@ -43,6 +44,8 @@ class _VehicleDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wishlist = context.watch<WishlistController>();
+
     return BlocBuilder<VehicleDetailsCubit, VehicleDetailsState>(
       builder: (context, state) {
         return Scaffold(
@@ -169,6 +172,9 @@ class _VehicleDetailsView extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 14),
                             child: VehicleCardTile(
                               vehicle: vehicle,
+                              isWishlisted: wishlist.contains(vehicle.id),
+                              onToggleWishlist: () =>
+                                  _toggleWishlist(context, vehicle.id),
                               onTap: () {
                                 Navigator.of(context).pushReplacement(
                                   MaterialPageRoute<void>(
@@ -189,6 +195,22 @@ class _VehicleDetailsView extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _toggleWishlist(BuildContext context, String vehicleId) {
+    final added = context.read<WishlistController>().toggle(vehicleId);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? 'Added to wishlist' : 'Removed from wishlist',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 }
 

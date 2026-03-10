@@ -5,42 +5,76 @@ import '../../../../repositories/auto_trader_repository.dart';
 import 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
-  HomeCubit({required AutoTraderRepository repository})
+  HomeCubit({
+    required AutoTraderRepository repository,
+    HomeBootstrapData? initialData,
+  })
     : _repository = repository,
-      super(const HomeState());
+      super(
+        initialData == null
+            ? const HomeState()
+            : HomeState(
+                isLoading: false,
+                loadingProgress: 100,
+                homepageVehicles: initialData.homepageVehicles,
+                filterMetadata: initialData.filterMetadata,
+                scopedFilterMetadata: initialData.filterMetadata,
+                azerbaijanFeatured: initialData.azerbaijanFeatured,
+                electricFeatured: initialData.electricFeatured,
+              ),
+      );
 
   final AutoTraderRepository _repository;
 
   Future<void> load() async {
+    if (!state.isLoading &&
+        state.homepageVehicles.isNotEmpty &&
+        state.filterMetadata != FilterMetadata.empty &&
+        state.azerbaijanFeatured.isNotEmpty &&
+        state.electricFeatured.isNotEmpty) {
+      return;
+    }
+
     emit(
       state.copyWith(
         isLoading: true,
+        loadingProgress: 0,
         errorMessage: null,
         quickSearchError: null,
       ),
     );
 
     try {
-      final results = await Future.wait<dynamic>([
-        _repository.fetchHomepageVehicles(),
-        _repository.fetchFilters(),
-        _repository.fetchAzerbaijanFeaturedVehicles(),
-        _repository.fetchElectricFeaturedVehicles(),
-      ]);
+      final results = await _repository.fetchHomeBootstrapData(
+        onProgress: (completedSteps, totalSteps) {
+          emit(
+            state.copyWith(
+              isLoading: true,
+              loadingProgress: ((completedSteps / totalSteps) * 100).round(),
+            ),
+          );
+        },
+      );
 
-      final filters = results[1] as FilterMetadata;
+      final filters = results.filterMetadata;
       emit(
         state.copyWith(
           isLoading: false,
-          homepageVehicles: results[0] as List<VehicleSummary>,
+          loadingProgress: 100,
+          homepageVehicles: results.homepageVehicles,
           filterMetadata: filters,
           scopedFilterMetadata: filters,
-          azerbaijanFeatured: results[2] as List<VehicleSummary>,
-          electricFeatured: results[3] as List<VehicleSummary>,
+          azerbaijanFeatured: results.azerbaijanFeatured,
+          electricFeatured: results.electricFeatured,
         ),
       );
     } catch (error) {
-      emit(state.copyWith(isLoading: false, errorMessage: error.toString()));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: error.toString(),
+        ),
+      );
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../features/wishlist/wishlist_controller.dart';
 import '../features/search/presentation/cubit/search_cubit.dart';
 import '../features/search/presentation/cubit/search_state.dart';
 import '../models/auto_trader_models.dart';
@@ -16,13 +17,17 @@ class SearchPage extends StatelessWidget {
     super.key,
     this.initialFilters = const VehicleSearchFilters(),
     this.showScaffold = true,
+    this.title,
   });
 
   final VehicleSearchFilters initialFilters;
   final bool showScaffold;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedTitle = title ?? _defaultSearchTitle(initialFilters);
+
     return BlocProvider(
       create: (context) =>
           SearchCubit(repository: context.read<AutoTraderRepository>())
@@ -30,16 +35,22 @@ class SearchPage extends StatelessWidget {
       child: _SearchView(
         initialFilters: initialFilters,
         showScaffold: showScaffold,
+        title: resolvedTitle,
       ),
     );
   }
 }
 
 class _SearchView extends StatefulWidget {
-  const _SearchView({required this.initialFilters, required this.showScaffold});
+  const _SearchView({
+    required this.initialFilters,
+    required this.showScaffold,
+    required this.title,
+  });
 
   final VehicleSearchFilters initialFilters;
   final bool showScaffold;
+  final String title;
 
   @override
   State<_SearchView> createState() => _SearchViewState();
@@ -79,6 +90,8 @@ class _SearchViewState extends State<_SearchView> {
 
   @override
   Widget build(BuildContext context) {
+    final wishlist = context.watch<WishlistController>();
+
     return BlocBuilder<SearchCubit, SearchState>(
       builder: (context, state) {
         final content = SafeArea(
@@ -136,6 +149,9 @@ class _SearchViewState extends State<_SearchView> {
                             child: VehicleCardTile(
                               vehicle: vehicle,
                               onTap: () => _openDetails(context, vehicle),
+                              isWishlisted: wishlist.contains(vehicle.id),
+                              onToggleWishlist: () =>
+                                  _toggleWishlist(vehicle.id),
                             ),
                           ),
                         ),
@@ -181,7 +197,7 @@ class _SearchViewState extends State<_SearchView> {
         }
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Vehicle search')),
+          appBar: AppBar(title: Text(widget.title)),
           body: content,
         );
       },
@@ -196,6 +212,35 @@ class _SearchViewState extends State<_SearchView> {
       ),
     );
   }
+
+  void _toggleWishlist(String vehicleId) {
+    final added = context.read<WishlistController>().toggle(vehicleId);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? 'Added to wishlist' : 'Removed from wishlist',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+}
+
+String _defaultSearchTitle(VehicleSearchFilters filters) {
+  final countryLabel = filters.country?.label.trim().toLowerCase();
+  final fuelLabel = filters.fuel?.label.trim().toLowerCase();
+
+  if (countryLabel == 'auction') {
+    return 'Active Lots';
+  }
+  if (fuelLabel == 'electric') {
+    return 'Electric Vehicles';
+  }
+  return 'Vehicle Search';
 }
 
 class _FiltersCard extends StatelessWidget {
