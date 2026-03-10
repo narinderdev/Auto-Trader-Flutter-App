@@ -488,6 +488,10 @@ class VehicleSummary {
     required this.currency,
     required this.year,
     required this.odometer,
+    required this.lotNumber,
+    required this.primaryDamage,
+    required this.secondaryDamage,
+    required this.saleStatus,
     required this.transmission,
     required this.fuel,
     required this.bodyType,
@@ -512,6 +516,10 @@ class VehicleSummary {
   final String currency;
   final int? year;
   final int? odometer;
+  final String lotNumber;
+  final String primaryDamage;
+  final String secondaryDamage;
+  final String saleStatus;
   final String transmission;
   final String fuel;
   final String bodyType;
@@ -582,6 +590,40 @@ class VehicleSummary {
       json['km'],
       json['odometer_km'],
     );
+    final lotNumber =
+        _pickString(
+          json['lot_number'],
+          json['lotNumber'],
+          json['lot'],
+          json['lot_id'],
+          json['lotId'],
+          json['stock_number'],
+        ) ??
+        '';
+    final primaryDamage =
+        _pickString(
+          json['primary_damage'],
+          json['primaryDamage'],
+          json['damage_primary'],
+          json['primary_damage_desc'],
+        ) ??
+        '';
+    final secondaryDamage =
+        _pickString(
+          json['secondary_damage'],
+          json['secondaryDamage'],
+          json['damage_secondary'],
+          json['secondary_damage_desc'],
+        ) ??
+        '';
+    final saleStatus =
+        _pickString(
+          json['sale_status'],
+          json['saleStatus'],
+          json['status'],
+          json['auction_status'],
+        ) ??
+        '';
     final location =
         _pickString(
           json['location'],
@@ -608,6 +650,10 @@ class VehicleSummary {
       currency: currency,
       year: year,
       odometer: odometer,
+      lotNumber: lotNumber,
+      primaryDamage: primaryDamage,
+      secondaryDamage: secondaryDamage,
+      saleStatus: saleStatus,
       transmission:
           _pickString(
             json['transmission'],
@@ -712,6 +758,19 @@ class VehicleDetails {
     required this.price,
     required this.currency,
     required this.odometer,
+    this.lotNumber = '',
+    this.primaryDamage = '',
+    this.secondaryDamage = '',
+    this.saleStatus = '',
+    this.saleDate = '',
+    this.timeLeft = '',
+    this.currentBid,
+    this.buyNow,
+    this.estimatedRetailValue,
+    this.lastUpdated = '',
+    this.titleCode = '',
+    this.cylinders = '',
+    this.keys = '',
     required this.transmission,
     required this.fuel,
     required this.bodyType,
@@ -738,6 +797,19 @@ class VehicleDetails {
   final num price;
   final String currency;
   final int? odometer;
+  final String lotNumber;
+  final String primaryDamage;
+  final String secondaryDamage;
+  final String saleStatus;
+  final String saleDate;
+  final String timeLeft;
+  final num? currentBid;
+  final num? buyNow;
+  final num? estimatedRetailValue;
+  final String lastUpdated;
+  final String titleCode;
+  final String cylinders;
+  final String keys;
   final String transmission;
   final String fuel;
   final String bodyType;
@@ -814,6 +886,99 @@ class VehicleDetails {
           ) ??
           'USD',
       odometer: _pickInt(json['odometer'], fallback?.odometer),
+      lotNumber:
+          _pickString(
+            json['lot_number'],
+            json['lotNumber'],
+            json['lot'],
+            json['lot_id'],
+            json['lotId'],
+            fallback?.lotNumber,
+          ) ??
+          '',
+      primaryDamage:
+          _pickString(
+            json['primary_damage'],
+            json['primaryDamage'],
+            json['damage_primary'],
+            json['primary_damage_desc'],
+            fallback?.primaryDamage,
+          ) ??
+          '',
+      secondaryDamage:
+          _pickString(
+            json['secondary_damage'],
+            json['secondaryDamage'],
+            json['damage_secondary'],
+            json['secondary_damage_desc'],
+            fallback?.secondaryDamage,
+          ) ??
+          '',
+      saleStatus:
+          _pickString(
+            json['sale_status'],
+            json['saleStatus'],
+            json['status'],
+            json['auction_status'],
+          ) ??
+          '',
+      saleDate:
+          _pickString(
+            json['sale_date'],
+            json['saleDate'],
+            json['auction_date'],
+            json['auctionDate'],
+          ) ??
+          '',
+      timeLeft:
+          _pickString(
+            json['time_left'],
+            json['timeLeft'],
+            json['time_remaining'],
+          ) ??
+          '',
+      currentBid:
+          _pickNumber(
+            json['current_bid'],
+            json['currentBid'],
+            json['bid_amount'],
+          ),
+      buyNow:
+          _pickNumber(
+            json['buy_now'],
+            json['buyNow'],
+            json['buy_now_price'],
+          ),
+      estimatedRetailValue:
+          _pickNumber(
+            json['estimated_retail_value'],
+            json['estimatedRetailValue'],
+          ),
+      lastUpdated:
+          _pickString(
+            json['last_updated'],
+            json['lastUpdated'],
+            json['updated_at'],
+          ) ??
+          '',
+      titleCode:
+          _pickString(
+            json['title_code'],
+            json['titleCode'],
+          ) ??
+          '',
+      cylinders:
+          _pickString(
+            json['cylinders'],
+            json['cylinders_count'],
+          ) ??
+          '',
+      keys:
+          _pickString(
+            json['keys'],
+            json['keys_status'],
+          ) ??
+          '',
       transmission:
           _pickString(json['transmission'], fallback?.transmission) ?? '',
       fuel: _pickString(json['fuel'], fallback?.fuel) ?? '',

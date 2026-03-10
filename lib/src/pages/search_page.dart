@@ -7,7 +7,6 @@ import '../features/search/presentation/cubit/search_state.dart';
 import '../models/auto_trader_models.dart';
 import '../repositories/auto_trader_repository.dart';
 import '../utils/formatters.dart';
-import '../widgets/vehicle_card_tile.dart';
 import 'vehicle_details_page.dart';
 
 const _dropdownMenuMaxHeight = 280.0;
@@ -146,12 +145,13 @@ class _SearchViewState extends State<_SearchView> {
                         ...state.results.map(
                           (vehicle) => Padding(
                             padding: const EdgeInsets.only(bottom: 14),
-                            child: VehicleCardTile(
+                            child: _SearchResultCard(
                               vehicle: vehicle,
-                              onTap: () => _openDetails(context, vehicle),
                               isWishlisted: wishlist.contains(vehicle.id),
                               onToggleWishlist: () =>
                                   _toggleWishlist(vehicle.id),
+                              onOpenDetails: () =>
+                                  _openDetails(context, vehicle),
                             ),
                           ),
                         ),
@@ -207,8 +207,11 @@ class _SearchViewState extends State<_SearchView> {
   void _openDetails(BuildContext context, VehicleSummary vehicle) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            VehicleDetailsPage(vehicleId: vehicle.id, initialVehicle: vehicle),
+        builder: (_) => VehicleDetailsPage(
+          vehicleId: vehicle.id,
+          initialVehicle: vehicle,
+          embedded: true,
+        ),
       ),
     );
   }
@@ -445,6 +448,231 @@ class _FiltersCard extends StatelessWidget {
     final min = range.min.round();
     final max = range.max.round();
     return [for (var year = max; year >= min; year -= 1) year];
+  }
+}
+
+class _SearchResultCard extends StatefulWidget {
+  const _SearchResultCard({
+    required this.vehicle,
+    required this.isWishlisted,
+    required this.onToggleWishlist,
+    required this.onOpenDetails,
+  });
+
+  final VehicleSummary vehicle;
+  final bool isWishlisted;
+  final VoidCallback onToggleWishlist;
+  final VoidCallback onOpenDetails;
+
+  @override
+  State<_SearchResultCard> createState() => _SearchResultCardState();
+}
+
+class _SearchResultCardState extends State<_SearchResultCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = widget.vehicle;
+    final odometerText = vehicle.odometer == null
+        ? '-'
+        : '${formatWholeNumber(vehicle.odometer!)} mi';
+    final lotNumber = vehicle.lotNumber.isEmpty ? '-' : vehicle.lotNumber;
+    final primaryDamage =
+        vehicle.primaryDamage.isEmpty ? '-' : vehicle.primaryDamage;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE7E1D8)),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: widget.onOpenDetails,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(
+                      vehicle.image,
+                      width: 74,
+                      height: 74,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 74,
+                        height: 74,
+                        color: const Color(0xFFE7E1D8),
+                        child: const Icon(Icons.directions_car_rounded),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vehicle.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        RichText(
+                          text: TextSpan(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: const Color(0xFF111827),
+                                ),
+                            children: [
+                              const TextSpan(text: 'Lot: '),
+                              TextSpan(
+                                text: lotNumber,
+                                style: const TextStyle(
+                                  color: Color(0xFFDF3040),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Odometer: $odometerText (Actual)',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF111827),
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Primary Damage: $primaryDamage',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF111827),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDEDEE),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(_expanded ? 0 : 8),
+                  bottomRight: Radius.circular(_expanded ? 0 : 8),
+                ),
+              ),
+              child: Text(
+                _expanded ? 'Less Details -' : 'More Details +',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFFDF3040),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ),
+          if (_expanded)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDEDEE),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _DetailRow(
+                    label: 'Secondary Damage',
+                    value: vehicle.secondaryDamage.isEmpty
+                        ? '-'
+                        : vehicle.secondaryDamage,
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow(
+                    label: 'Sale Status',
+                    value: vehicle.saleStatus.isEmpty
+                        ? 'On Approval'
+                        : vehicle.saleStatus,
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow(
+                    label: 'Transmission',
+                    value: vehicle.transmission.isEmpty
+                        ? '-'
+                        : vehicle.transmission,
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow(
+                    label: 'Drive',
+                    value: vehicle.drive.isEmpty ? '-' : vehicle.drive,
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow(
+                    label: 'Fuel Type',
+                    value: vehicle.fuel.isEmpty ? '-' : vehicle.fuel,
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow(
+                    label: 'Color',
+                    value: vehicle.color.isEmpty ? '-' : vehicle.color,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
+          ),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF111827),
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
   }
 }
 

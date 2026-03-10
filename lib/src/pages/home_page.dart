@@ -90,22 +90,7 @@ class _HomeViewState extends State<_HomeView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _WebsiteTopSection(
-                                  onHomeTap: _scrollToTop,
-                                  onElectricTap: () => _openSearch(
-                                    const VehicleSearchFilters(
-                                      fuel: LabeledOption(
-                                        label: 'Electric',
-                                        id: 'Electric',
-                                      ),
-                                    ),
-                                  ),
-                                  onMenuAction: _handleHeaderMenuAction,
-                                  onImportCountrySelected:
-                                      _openImportCountrySearch,
-                                  onSearchTap: _openSearchOverlay,
-                                ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 4),
                                 const _HeroBanner(),
                                 const SizedBox(height: 18),
                                 Transform.translate(

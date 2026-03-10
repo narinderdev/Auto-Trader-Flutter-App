@@ -26,7 +26,7 @@ class _AppShellPageState extends State<AppShellPage> {
   late final List<Widget> _tabs = [
     HomePage(showScaffold: false, initialData: widget.initialHomeData),
     const _CalculatorTabNavigator(),
-    const SearchPage(showScaffold: false),
+    const _SearchTabNavigator(),
     const NotificationsPage(embedded: true),
     ProfilePage(
       embedded: true,
@@ -41,13 +41,11 @@ class _AppShellPageState extends State<AppShellPage> {
   @override
   Widget build(BuildContext context) {
     final activeIndex = _currentIndex >= _tabs.length ? 0 : _currentIndex;
-    final showHeader = activeIndex != 0;
-
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            if (showHeader) const _AppHeader(),
+            const _AppHeader(),
             Expanded(
               child: IndexedStack(index: activeIndex, children: _tabs),
             ),
@@ -105,6 +103,22 @@ class _CalculatorTabNavigator extends StatelessWidget {
       onGenerateRoute: (settings) {
         return MaterialPageRoute<void>(
           builder: (_) => const CustomsCalculatorPage(embedded: true),
+          settings: settings,
+        );
+      },
+    );
+  }
+}
+
+class _SearchTabNavigator extends StatelessWidget {
+  const _SearchTabNavigator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (settings) {
+        return MaterialPageRoute<void>(
+          builder: (_) => const SearchPage(showScaffold: false),
           settings: settings,
         );
       },
