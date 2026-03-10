@@ -94,7 +94,7 @@ class _HomeViewState extends State<_HomeView> {
                                 const _HeroBanner(),
                                 const SizedBox(height: 16),
                                 _QuickSearchCard(state: state),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 16),
                                 const _BrandLogoCarouselSection(),
                                 const SizedBox(height: 26),
                                 _HomepageInventorySection(
@@ -1295,13 +1295,10 @@ class _QuickSearchCard extends StatelessWidget {
       ),
     ];
 
-    return Align(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
               final columns = constraints.maxWidth >= 720 ? 2 : 1;
               const spacing = 12.0;
               final itemWidth =
@@ -1376,9 +1373,7 @@ class _QuickSearchCard extends StatelessWidget {
               );
             },
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 
