@@ -488,19 +488,24 @@ class _VehicleImageCarousel extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 10,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    images.length,
-                    (index) => Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: index == currentIndex
-                            ? const Color(0xFFDF3040)
-                            : Colors.white70,
+                child: Center(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        images.length,
+                        (index) => Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: index == currentIndex
+                                ? const Color(0xFFDF3040)
+                                : Colors.white70,
+                          ),
+                        ),
                       ),
                     ),
                   ),
