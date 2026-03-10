@@ -249,19 +249,19 @@ class _AppHeaderState extends State<_AppHeader> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       constraints: const BoxConstraints(minWidth: 0),
       items: [
-     PopupMenuItem(
-  value: 'AZ',
-  padding: EdgeInsets.zero,
-  height: 0,
-  child: _LanguageMenuItem(
-    label: 'AZ',
-    isSelected: _language == 'AZ',
-  ),
-),
+        PopupMenuItem(
+          value: 'AZ',
+          padding: EdgeInsets.zero,
+          height: 32,
+          child: _LanguageMenuItem(
+            label: 'AZ',
+            isSelected: _language == 'AZ',
+          ),
+        ),
         PopupMenuItem(
           value: 'EN',
           padding: EdgeInsets.zero,
-          height: 0,
+          height: 32,
           child: _LanguageMenuItem(
             label: 'EN',
             isSelected: _language == 'EN',

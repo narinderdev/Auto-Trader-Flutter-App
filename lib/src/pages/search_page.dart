@@ -60,6 +60,7 @@ class _SearchViewState extends State<_SearchView> {
   late final TextEditingController _priceMaxController;
   late final TextEditingController _odometerMinController;
   late final TextEditingController _odometerMaxController;
+  _QuickFilterType _quickFilter = _QuickFilterType.none;
 
   @override
   void initState() {
@@ -87,12 +88,36 @@ class _SearchViewState extends State<_SearchView> {
     super.dispose();
   }
 
+  List<VehicleSummary> _applyQuickFilter(List<VehicleSummary> results) {
+    if (_quickFilter == _QuickFilterType.none) {
+      return results;
+    }
+    if (_quickFilter == _QuickFilterType.buyNow) {
+      return results
+          .where(
+            (vehicle) =>
+                vehicle.saleStatus.toLowerCase().contains('buy') ||
+                vehicle.saleStatus.toLowerCase().contains('now'),
+          )
+          .toList();
+    }
+    return results
+        .where(
+          (vehicle) =>
+              vehicle.primaryDamage.toLowerCase().contains('run') ||
+              vehicle.primaryDamage.toLowerCase().contains('drive') ||
+              vehicle.saleStatus.toLowerCase().contains('run'),
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final wishlist = context.watch<WishlistController>();
 
     return BlocBuilder<SearchCubit, SearchState>(
       builder: (context, state) {
+        final filteredResults = _applyQuickFilter(state.results);
         final content = SafeArea(
           child: state.isBusy && state.results.isEmpty
               ? const Center(child: CircularProgressIndicator())
@@ -110,39 +135,54 @@ class _SearchViewState extends State<_SearchView> {
                         odometerMaxController: _odometerMaxController,
                       ),
                       const SizedBox(height: 18),
+                      _QuickFiltersRow(
+                        activeFilter: _quickFilter,
+                        onSelect: (filter) {
+                          setState(() {
+                            _quickFilter = _quickFilter == filter
+                                ? _QuickFilterType.none
+                                : filter;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              state.total == null
-                                  ? '${state.results.length} vehicles'
-                                  : '${state.results.length} of ${formatWholeNumber(state.total!)} vehicles',
+                              'Showing ${filteredResults.length} Results',
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                           ),
-                          if (state.errorMessage != null)
-                            Text(
-                              state.errorMessage!,
-                              style: const TextStyle(
-                                color: Color(0xFFB4232F),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      if (state.results.isEmpty)
-                        const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(18),
-                            child: Text(
-                              'No vehicles match the current filters.',
+                      if (state.errorMessage != null &&
+                          filteredResults.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFDECEC),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            state.errorMessage!,
+                            style: const TextStyle(
+                              color: Color(0xFFB4232F),
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      if (filteredResults.isEmpty)
+                        _NoResultsCard(
+                          onDetailedSearch: () =>
+                              _openDetailedSearch(context),
                         )
                       else
-                        ...state.results.map(
+                        ...filteredResults.map(
                           (vehicle) => Padding(
                             padding: const EdgeInsets.only(bottom: 14),
                             child: _SearchResultCard(
@@ -156,7 +196,9 @@ class _SearchViewState extends State<_SearchView> {
                           ),
                         ),
                       const SizedBox(height: 8),
-                      if (state.totalPages != null && state.totalPages! > 1)
+                      if (filteredResults.isNotEmpty &&
+                          state.totalPages != null &&
+                          state.totalPages! > 1)
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -211,6 +253,23 @@ class _SearchViewState extends State<_SearchView> {
           vehicleId: vehicle.id,
           initialVehicle: vehicle,
           embedded: true,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDetailedSearch(BuildContext context) async {
+    final cubit = context.read<SearchCubit>();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: cubit,
+          child: _FiltersPage(
+            priceMinController: _priceMinController,
+            priceMaxController: _priceMaxController,
+            odometerMinController: _odometerMinController,
+            odometerMaxController: _odometerMaxController,
+          ),
         ),
       ),
     );
@@ -311,13 +370,17 @@ class _FiltersCard extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
+                  final cubit = context.read<SearchCubit>();
                   await Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => _FiltersPage(
-                        priceMinController: priceMinController,
-                        priceMaxController: priceMaxController,
-                        odometerMinController: odometerMinController,
-                        odometerMaxController: odometerMaxController,
+                      builder: (_) => BlocProvider.value(
+                        value: cubit,
+                        child: _FiltersPage(
+                          priceMinController: priceMinController,
+                          priceMaxController: priceMaxController,
+                          odometerMinController: odometerMinController,
+                          odometerMaxController: odometerMaxController,
+                        ),
                       ),
                     ),
                   );
@@ -516,6 +579,137 @@ class _SearchResultCard extends StatefulWidget {
 
   @override
   State<_SearchResultCard> createState() => _SearchResultCardState();
+}
+
+class _QuickFiltersRow extends StatelessWidget {
+  const _QuickFiltersRow({
+    required this.activeFilter,
+    required this.onSelect,
+  });
+
+  final _QuickFilterType activeFilter;
+  final ValueChanged<_QuickFilterType> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            'Quick Filters:',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF6B7280),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          _QuickFilterChip(
+            label: 'Buy now',
+            isSelected: activeFilter == _QuickFilterType.buyNow,
+            onTap: () => onSelect(_QuickFilterType.buyNow),
+          ),
+          _QuickFilterChip(
+            label: 'Run & Drive',
+            isSelected: activeFilter == _QuickFilterType.runDrive,
+            onTap: () => onSelect(_QuickFilterType.runDrive),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickFilterChip extends StatelessWidget {
+  const _QuickFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        backgroundColor: isSelected ? const Color(0xFFDF3040) : Colors.white,
+        foregroundColor: isSelected ? Colors.white : const Color(0xFF111827),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFFDF3040) : const Color(0xFFD1D5DB),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+enum _QuickFilterType { none, buyNow, runDrive }
+
+class _NoResultsCard extends StatelessWidget {
+  const _NoResultsCard({required this.onDetailedSearch});
+
+  final VoidCallback onDetailedSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No results were found',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try changing your keywords or filters to expand the results and continue your search.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6B7280),
+                  ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onDetailedSearch,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDF3040),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Detailed Search'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SelectedFilter {
