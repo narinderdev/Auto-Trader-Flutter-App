@@ -252,35 +252,15 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                     const SizedBox(height: 12),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
                     const SizedBox(height: 14),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 360;
-                        if (compact) {
-                          return Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            runSpacing: 16,
-                            children: resolvedFacts
-                                .take(3)
-                                .map(
-                                  (fact) => SizedBox(
-                                    width: (constraints.maxWidth - 16) / 2,
-                                    child: _FactColumn(fact: fact),
-                                  ),
-                                )
-                                .toList(),
-                          );
-                        }
-                        return Row(
-                          children: resolvedFacts
-                              .take(3)
-                              .map(
-                                (fact) => Expanded(
-                                  child: _FactColumn(fact: fact),
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
+                    Row(
+                      children: resolvedFacts
+                          .take(3)
+                          .map(
+                            (fact) => Expanded(
+                              child: _FactColumn(fact: fact),
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 14),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
