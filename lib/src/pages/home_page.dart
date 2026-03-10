@@ -109,7 +109,7 @@ class _HomeViewState extends State<_HomeView> {
                                       subtitle:
                                           'Discover the Future of Driving - Clean, Quiet, Powerful.',
                                       vehicles: state.electricFeatured
-                                          .take(1)
+                                          .take(3)
                                           .toList(),
                                       onTap: (vehicle) =>
                                           _openDetails(context, vehicle),
@@ -140,7 +140,7 @@ class _HomeViewState extends State<_HomeView> {
                                       subtitle:
                                           'Browse vehicles in Azerbaijan, ready for you to drive home today.',
                                       vehicles: state.azerbaijanFeatured
-                                          .take(1)
+                                          .take(3)
                                           .toList(),
                                       onTap: (vehicle) =>
                                           _openDetails(context, vehicle),
@@ -1522,14 +1522,20 @@ class _HomepageInventorySection extends StatelessWidget {
               }).toList();
 
               if (crossAxisCount == 1) {
-                return Column(
-                  children: [
-                    for (var index = 0; index < cards.length; index += 1) ...[
-                      cards[index],
-                      if (index < cards.length - 1)
-                        const SizedBox(height: 22),
-                    ],
-                  ],
+                final cardWidth = width * 0.72;
+                final cardHeight = cardWidth / 0.68;
+                return SizedBox(
+                  height: cardHeight,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: cards.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    separatorBuilder: (_, __) => const SizedBox(width: 16),
+                    itemBuilder: (context, index) => SizedBox(
+                      width: cardWidth,
+                      child: cards[index],
+                    ),
+                  ),
                 );
               }
 
