@@ -85,76 +85,88 @@ class _HomeViewState extends State<_HomeView> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                const _HeroBanner(),
-                                const SizedBox(height: 16),
-                                _QuickSearchCard(state: state),
-                                const SizedBox(height: 16),
-                                const _BrandLogoCarouselSection(),
-                                const SizedBox(height: 26),
-                                _HomepageInventorySection(
-                                  titleStart: 'Electric ',
-                                  titleAccent: 'Vehicles',
-                                  subtitle:
-                                      'Discover the Future of Driving - Clean, Quiet, Powerful.',
-                                  vehicles:
-                                      state.electricFeatured.take(1).toList(),
-                                  onTap: (vehicle) =>
-                                      _openDetails(context, vehicle),
-                                  onToggleWishlist: _toggleWishlist,
-                                  isWishlisted: wishlist.contains,
-                                  onViewAll: () => _openSearch(
-                                    const VehicleSearchFilters(
-                                      fuel: LabeledOption(
-                                        label: 'Electric',
-                                        id: 'Electric',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 12),
+                              const _HeroBanner(),
+                              const SizedBox(height: 16),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _QuickSearchCard(state: state),
+                                    const SizedBox(height: 16),
+                                    const _BrandLogoCarouselSection(),
+                                    const SizedBox(height: 26),
+                                    _HomepageInventorySection(
+                                      titleStart: 'Electric ',
+                                      titleAccent: 'Vehicles',
+                                      subtitle:
+                                          'Discover the Future of Driving - Clean, Quiet, Powerful.',
+                                      vehicles: state.electricFeatured
+                                          .take(1)
+                                          .toList(),
+                                      onTap: (vehicle) =>
+                                          _openDetails(context, vehicle),
+                                      onToggleWishlist: _toggleWishlist,
+                                      isWishlisted: wishlist.contains,
+                                      onViewAll: () => _openSearch(
+                                        const VehicleSearchFilters(
+                                          fuel: LabeledOption(
+                                            label: 'Electric',
+                                            id: 'Electric',
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  eyebrowBuilder: (vehicle) =>
-                                      _cardEyebrow(vehicle, preferBodyType: false),
-                                  factsBuilder: _electricFacts,
-                                  enableImageCarousel: true,
-                                  autoPlayGallery: true,
-                                  showImageNavigation: true,
-                                  showImageIndicators: true,
-                                ),
-                                const SizedBox(height: 26),
-                                _HomepageInventorySection(
-                                  titleStart: 'Vehicles in ',
-                                  titleAccent: 'Azerbaijan',
-                                  subtitle:
-                                      'Browse vehicles in Azerbaijan, ready for you to drive home today.',
-                                  vehicles:
-                                      state.azerbaijanFeatured.take(1).toList(),
-                                  onTap: (vehicle) =>
-                                      _openDetails(context, vehicle),
-                                  onToggleWishlist: _toggleWishlist,
-                                  isWishlisted: wishlist.contains,
-                                  onViewAll: () => _openSearch(
-                                    const VehicleSearchFilters(
-                                      country: LabeledOption(
-                                        label: 'Azerbaijan',
-                                        id: 'Azerbaijan',
+                                      eyebrowBuilder: (vehicle) => _cardEyebrow(
+                                        vehicle,
+                                        preferBodyType: false,
                                       ),
+                                      factsBuilder: _electricFacts,
+                                      enableImageCarousel: true,
+                                      autoPlayGallery: true,
+                                      showImageNavigation: true,
+                                      showImageIndicators: true,
                                     ),
-                                  ),
-                                  eyebrowBuilder: (vehicle) =>
-                                      _cardEyebrow(vehicle, preferBodyType: true),
-                                  factsBuilder: _regionalFacts,
-                                  enableImageCarousel: true,
-                                  autoPlayGallery: true,
-                                  showImageNavigation: true,
-                                  showImageIndicators: true,
+                                    const SizedBox(height: 26),
+                                    _HomepageInventorySection(
+                                      titleStart: 'Vehicles in ',
+                                      titleAccent: 'Azerbaijan',
+                                      subtitle:
+                                          'Browse vehicles in Azerbaijan, ready for you to drive home today.',
+                                      vehicles: state.azerbaijanFeatured
+                                          .take(1)
+                                          .toList(),
+                                      onTap: (vehicle) =>
+                                          _openDetails(context, vehicle),
+                                      onToggleWishlist: _toggleWishlist,
+                                      isWishlisted: wishlist.contains,
+                                      onViewAll: () => _openSearch(
+                                        const VehicleSearchFilters(
+                                          country: LabeledOption(
+                                            label: 'Azerbaijan',
+                                            id: 'Azerbaijan',
+                                          ),
+                                        ),
+                                      ),
+                                      eyebrowBuilder: (vehicle) => _cardEyebrow(
+                                        vehicle,
+                                        preferBodyType: true,
+                                      ),
+                                      factsBuilder: _regionalFacts,
+                                      enableImageCarousel: true,
+                                      autoPlayGallery: true,
+                                      showImageNavigation: true,
+                                      showImageIndicators: true,
+                                    ),
+                                    const SizedBox(height: 36),
+                                  ],
                                 ),
-                                const SizedBox(height: 36),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
