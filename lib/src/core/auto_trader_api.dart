@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../config/app_config.dart';
 import '../models/auto_trader_models.dart';
 
@@ -64,6 +66,11 @@ class AutoTraderApi {
       'page': '$page',
       'limit': '$limit',
     };
+
+    if (kDebugMode) {
+      debugPrint('Search query params: $query');
+      debugPrint('Search uri: ${_buildUri('/metadata/vehicles', query: query)}');
+    }
 
     final payload = await _getJson('/metadata/vehicles', query: query);
     final vehicles = _extractVehicleList(payload);

@@ -43,241 +43,270 @@ class _ShippingCalculatorPageState extends State<ShippingCalculatorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final content = ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        Text(
-          'Shipping Calculator',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Find Out the Final Price for Any Vehicle',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: const Color(0xFF6B7280)),
-        ),
-        const SizedBox(height: 18),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _FieldLabel('Auction Company *'),
-                const SizedBox(height: 8),
-                _StyledDropdown<String>(
-                  value: _auctionCompany,
-                  items: _auctionCompanies,
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() {
-                      _auctionCompany = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('Lot Number'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _lotNumberController,
-                  decoration: const InputDecoration(hintText: 'Lot #'),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('Vehicle Type *'),
-                const SizedBox(height: 8),
-                _StyledDropdown<String>(
-                  value: _vehicleType,
-                  items: _vehicleTypes,
-                  errorText: _vehicleTypeError,
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() {
-                      _vehicleType = value;
-                      _vehicleTypeError = null;
-                      _formError = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('Location *'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _locationController,
-                  onChanged: (_) {
-                    if (_locationError == null && _formError == null) {
-                      return;
-                    }
-                    setState(() {
-                      if (_locationController.text.trim().isNotEmpty) {
-                        _locationError = null;
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(5);
+    final inputTheme = theme.inputDecorationTheme.copyWith(
+      border: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFB4232F), width: 1.3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C), width: 1.3),
+      ),
+    );
+
+    final content = Theme(
+      data: theme.copyWith(inputDecorationTheme: inputTheme),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        children: [
+          Text(
+            'Shipping Calculator',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Find Out the Final Price for Any Vehicle',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: const Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 18),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: radius),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FieldLabel('Auction Company *'),
+                  const SizedBox(height: 8),
+                  _StyledDropdown<String>(
+                    value: _auctionCompany,
+                    items: _auctionCompanies,
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
                       }
-                      _formError = null;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search location',
-                    errorText: _locationError,
+                      setState(() {
+                        _auctionCompany = value;
+                      });
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('Destination *'),
-                const SizedBox(height: 8),
-                _StyledDropdown<String>(
-                  value: _destination,
-                  items: _destinations,
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() {
-                      _destination = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _calculate,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF4A95F0),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Calculate'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _clear,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF2D2D2D),
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Clear'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_formError != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _formError!,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFFD91C3C),
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 16),
+                  _FieldLabel('Lot Number'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _lotNumberController,
+                    decoration: const InputDecoration(hintText: 'Lot #'),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel('Vehicle Type *'),
+                  const SizedBox(height: 8),
+                  _StyledDropdown<String>(
+                    value: _vehicleType,
+                    items: _vehicleTypes,
+                    errorText: _vehicleTypeError,
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _vehicleType = value;
+                        _vehicleTypeError = null;
+                        _formError = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel('Location *'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _locationController,
+                    onChanged: (_) {
+                      if (_locationError == null && _formError == null) {
+                        return;
+                      }
+                      setState(() {
+                        if (_locationController.text.trim().isNotEmpty) {
+                          _locationError = null;
+                        }
+                        _formError = null;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search location',
+                      errorText: _locationError,
                     ),
                   ),
-                ],
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    borderRadius: BorderRadius.circular(14),
-                    color: const Color(0xFFF8FAFC),
+                  const SizedBox(height: 16),
+                  _FieldLabel('Destination *'),
+                  const SizedBox(height: 8),
+                  _StyledDropdown<String>(
+                    value: _destination,
+                    items: _destinations,
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _destination = value;
+                      });
+                    },
                   ),
-                  child: Column(
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      _ResultRow(
-                        label: 'Shipping Fee',
-                        value: '${_shippingFee.toStringAsFixed(2)}\$',
-                      ),
-                      const SizedBox(height: 8),
-                      _ResultRow(
-                        label: 'Cost of Delivery',
-                        value: '${_deliveryCost.toStringAsFixed(2)}\$',
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDFF3E3),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Final Price',
-                                style: TextStyle(
-                                  color: Color(0xFF2E7D32),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _calculate,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF4A95F0),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: radius,
                             ),
-                            Text(
-                              '${_finalPrice.toStringAsFixed(2)}\$',
-                              style: const TextStyle(
-                                color: Color(0xFF2E7D32),
-                                fontWeight: FontWeight.w900,
-                              ),
+                          ),
+                          child: const Text('Calculate'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clear,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF2D2D2D),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: radius,
                             ),
-                          ],
+                          ),
+                          child: const Text('Clear'),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => _launchExternal('tel:994505553485'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFD91C3C),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Call Us'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () =>
-                            _launchExternal('https://wa.me/994505553485'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF57CC5A),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Write us'),
+                  if (_formError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _formError!,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: const Color(0xFFD91C3C),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: radius,
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: Column(
+                      children: [
+                        _ResultRow(
+                          label: 'Shipping Fee',
+                          value: '${_shippingFee.toStringAsFixed(2)}\$',
+                        ),
+                        const SizedBox(height: 8),
+                        _ResultRow(
+                          label: 'Cost of Delivery',
+                          value: '${_deliveryCost.toStringAsFixed(2)}\$',
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDFF3E3),
+                            borderRadius: radius,
+                          ),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Final Price',
+                                  style: TextStyle(
+                                    color: Color(0xFF2E7D32),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${_finalPrice.toStringAsFixed(2)}\$',
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => _launchExternal('tel:994505553485'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD91C3C),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: radius,
+                            ),
+                          ),
+                          child: const Text('Call Us'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () =>
+                              _launchExternal('https://wa.me/994505553485'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF57CC5A),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: radius,
+                            ),
+                          ),
+                          child: const Text('Write us'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
 
     if (widget.embedded) {

@@ -366,10 +366,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
 
     try {
       final repository = context.read<AutoTraderRepository>();
-      final filters = VehicleSearchFilters(
-        query: query,
-        country: _auction ? auctionCountryOption : null,
-      );
+      final filters = VehicleSearchFilters(query: query);
       final response = await repository.searchVehicles(
         filters,
         page: 1,
@@ -399,10 +396,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     if (rawQuery.isEmpty) {
       return;
     }
-    final filters = VehicleSearchFilters(
-      query: rawQuery,
-      country: _auction ? auctionCountryOption : null,
-    );
+    final filters = VehicleSearchFilters(query: rawQuery);
     widget.onSubmit(filters);
   }
 

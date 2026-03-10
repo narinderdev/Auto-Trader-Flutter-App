@@ -440,14 +440,16 @@ class VehicleSearchFilters {
     if (queryValue != null && queryValue.isNotEmpty) {
       final normalizedQuery = _normalizeSearchValue(queryValue);
       params['search'] = normalizedQuery;
+      params['q'] = normalizedQuery;
       final vin = _extractVin(normalizedQuery);
       if (vin != null) {
         params['vin'] = vin;
-      }
-      final lot = _extractLot(normalizedQuery);
-      if (lot != null) {
-        params['lot_number'] = lot;
-        params['lot'] = lot;
+      } else {
+        final lot = _extractLot(normalizedQuery);
+        if (lot != null) {
+          params['lot_number'] = lot;
+          params['lot'] = lot;
+        }
       }
     }
 
@@ -1842,6 +1844,11 @@ String? _extractVin(String raw) {
 }
 
 String? _extractLot(String raw) {
+  final hasLetters = RegExp(r'[A-Za-z]').hasMatch(raw);
+  final hasLotWord = RegExp(r'\blot\b', caseSensitive: false).hasMatch(raw);
+  if (hasLetters && !hasLotWord) {
+    return null;
+  }
   final match = RegExp(r'\d{5,}').firstMatch(raw);
   if (match == null) {
     return null;
