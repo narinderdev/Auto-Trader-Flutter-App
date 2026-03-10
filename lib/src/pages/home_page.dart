@@ -1544,7 +1544,7 @@ class _HomepageInventorySection extends StatelessWidget {
 
               if (crossAxisCount == 1) {
                 final cardWidth = width;
-                final cardHeight = (cardWidth / 1.55) + 420;
+                final cardHeight = (cardWidth / 1.35) + 260;
                 return SizedBox(
                   height: cardHeight,
                   child: PageView.builder(

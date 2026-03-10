@@ -249,7 +249,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
                     const SizedBox(height: 10),
                     Row(
@@ -262,7 +262,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                           )
                           .toList(),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
                     const SizedBox(height: 2),
                     TextButton(
@@ -347,7 +347,7 @@ class _VehicleImageCarousel extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(imageRadius),
       child: AspectRatio(
-        aspectRatio: 1.7,
+        aspectRatio: 1.55,
         child: Stack(
           fit: StackFit.expand,
           children: [
