@@ -92,11 +92,8 @@ class _HomeViewState extends State<_HomeView> {
                               children: [
                                 const SizedBox(height: 4),
                                 const _HeroBanner(),
-                                const SizedBox(height: 18),
-                                Transform.translate(
-                                  offset: const Offset(0, -18),
-                                  child: _QuickSearchCard(state: state),
-                                ),
+                                const SizedBox(height: 16),
+                                _QuickSearchCard(state: state),
                                 const SizedBox(height: 8),
                                 const _BrandLogoCarouselSection(),
                                 const SizedBox(height: 26),
