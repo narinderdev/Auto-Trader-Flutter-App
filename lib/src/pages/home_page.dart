@@ -111,8 +111,8 @@ class _HomeViewState extends State<_HomeView> {
                                       vehicles: state.electricFeatured
                                           .take(3)
                                           .toList(),
-                                      onTap: (vehicle) =>
-                                          _openDetails(context, vehicle),
+                                  onTap: (vehicle) =>
+                                      _openDetails(context, vehicle),
                                       onToggleWishlist: _toggleWishlist,
                                       isWishlisted: wishlist.contains,
                                       onViewAll: () => _openSearch(
@@ -142,8 +142,11 @@ class _HomeViewState extends State<_HomeView> {
                                       vehicles: state.azerbaijanFeatured
                                           .take(3)
                                           .toList(),
-                                      onTap: (vehicle) =>
-                                          _openDetails(context, vehicle),
+                                  onTap: (vehicle) => _openDetails(
+                                    context,
+                                    vehicle,
+                                    variant: VehicleDetailsVariant.azerbaijan,
+                                  ),
                                       onToggleWishlist: _toggleWishlist,
                                       isWishlisted: wishlist.contains,
                                       onViewAll: () => _openSearch(
@@ -326,13 +329,18 @@ class _HomeViewState extends State<_HomeView> {
     _openInventory();
   }
 
-  void _openDetails(BuildContext context, VehicleSummary vehicle) {
+  void _openDetails(
+    BuildContext context,
+    VehicleSummary vehicle, {
+    VehicleDetailsVariant variant = VehicleDetailsVariant.auction,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => VehicleDetailsPage(
           vehicleId: vehicle.id,
           initialVehicle: vehicle,
           embedded: true,
+          variant: variant,
         ),
       ),
     );
@@ -1522,17 +1530,15 @@ class _HomepageInventorySection extends StatelessWidget {
               }).toList();
 
               if (crossAxisCount == 1) {
-                final cardWidth = width * 0.72;
-                final cardHeight = cardWidth / 0.68;
+                final cardWidth = width;
+                final cardHeight = (cardWidth / 1.55) + 420;
                 return SizedBox(
                   height: cardHeight,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
+                  child: PageView.builder(
                     itemCount: cards.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    separatorBuilder: (_, __) => const SizedBox(width: 16),
-                    itemBuilder: (context, index) => SizedBox(
-                      width: cardWidth,
+                    controller: PageController(viewportFraction: 1),
+                    itemBuilder: (context, index) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: cards[index],
                     ),
                   ),

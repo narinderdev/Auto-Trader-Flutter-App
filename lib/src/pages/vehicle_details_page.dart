@@ -9,17 +9,21 @@ import '../repositories/auto_trader_repository.dart';
 import '../utils/formatters.dart';
 import '../widgets/vehicle_card_tile.dart';
 
+enum VehicleDetailsVariant { auction, azerbaijan }
+
 class VehicleDetailsPage extends StatelessWidget {
   const VehicleDetailsPage({
     super.key,
     required this.vehicleId,
     this.initialVehicle,
     this.embedded = false,
+    this.variant = VehicleDetailsVariant.auction,
   });
 
   final String vehicleId;
   final VehicleSummary? initialVehicle;
   final bool embedded;
+  final VehicleDetailsVariant variant;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +35,7 @@ class VehicleDetailsPage extends StatelessWidget {
         vehicleId: vehicleId,
         initialVehicle: initialVehicle,
         embedded: embedded,
+        variant: variant,
       ),
     );
   }
@@ -41,11 +46,13 @@ class _VehicleDetailsView extends StatelessWidget {
     required this.vehicleId,
     required this.initialVehicle,
     required this.embedded,
+    required this.variant,
   });
 
   final String vehicleId;
   final VehicleSummary? initialVehicle;
   final bool embedded;
+  final VehicleDetailsVariant variant;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +85,14 @@ class _VehicleDetailsView extends StatelessWidget {
                     ],
                   ),
                 ),
+              )
+            : variant == VehicleDetailsVariant.azerbaijan
+            ? _AzerbaijanDetailsContent(
+                vehicle: state.vehicle!,
+                fallback: initialVehicle,
+                similarVehicles: state.similarVehicles,
+                wishlist: wishlist,
+                onToggleWishlist: (id) => _toggleWishlist(context, id),
               )
             : _DetailsContent(
                 vehicle: state.vehicle!,
@@ -350,6 +365,579 @@ class _DetailsContent extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _AzerbaijanDetailsContent extends StatefulWidget {
+  const _AzerbaijanDetailsContent({
+    required this.vehicle,
+    required this.fallback,
+    required this.similarVehicles,
+    required this.wishlist,
+    required this.onToggleWishlist,
+  });
+
+  final VehicleDetails vehicle;
+  final VehicleSummary? fallback;
+  final List<VehicleSummary> similarVehicles;
+  final WishlistController wishlist;
+  final ValueChanged<String> onToggleWishlist;
+
+  @override
+  State<_AzerbaijanDetailsContent> createState() =>
+      _AzerbaijanDetailsContentState();
+}
+
+class _AzerbaijanDetailsContentState extends State<_AzerbaijanDetailsContent> {
+  late final PageController _controller;
+  int _activeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int index) {
+    if (!_controller.hasClients) {
+      return;
+    }
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicle = widget.vehicle;
+    final fallback = widget.fallback;
+    final gallery = vehicle.gallery.isEmpty
+        ? <String>[vehicle.image]
+        : vehicle.gallery;
+    final title = vehicle.title.isNotEmpty
+        ? vehicle.title
+        : '${vehicle.year ?? ''} ${vehicle.make} ${vehicle.model}'.trim();
+    final modelLine = [
+      vehicle.make,
+      vehicle.model,
+    ].where((value) => value.isNotEmpty).join(' ');
+    final highlights = vehicle.highlights.isNotEmpty
+        ? vehicle.highlights
+        : vehicle.badges;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      children: [
+        Row(
+          children: [
+            Text(
+              'Home',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFDF3040),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(width: 6),
+            const Text('/'),
+            const SizedBox(width: 6),
+            Text(
+              'Car Details',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6B7280),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 6),
+        if (modelLine.isNotEmpty)
+          Text(
+            modelLine,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF4B5563),
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        const SizedBox(height: 12),
+        AspectRatio(
+          aspectRatio: 1.2,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: gallery.isEmpty ? 1 : gallery.length,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _activeIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      final image = gallery.isEmpty ? '' : gallery[index];
+                      return DecoratedBox(
+                        decoration: const BoxDecoration(color: Color(0xFFE7E1D8)),
+                        child: image.isEmpty
+                            ? const Icon(
+                                Icons.directions_car_filled_rounded,
+                                size: 64,
+                              )
+                            : Image.network(
+                                image,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.directions_car_filled_rounded,
+                                      size: 64,
+                                    ),
+                              ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                top: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDF3040),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Model',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    'Pre-order',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ),
+              if (gallery.length > 1) ...[
+                Positioned(
+                  left: 10,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _ArrowButton(
+                      icon: Icons.chevron_left_rounded,
+                      onTap: () {
+                        final nextIndex = _activeIndex - 1;
+                        if (nextIndex < 0) {
+                          return;
+                        }
+                        _goTo(nextIndex);
+                      },
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 10,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _ArrowButton(
+                      icon: Icons.chevron_right_rounded,
+                      onTap: () {
+                        final nextIndex = _activeIndex + 1;
+                        if (nextIndex >= gallery.length) {
+                          return;
+                        }
+                        _goTo(nextIndex);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (gallery.length > 1) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 68,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: gallery.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final image = gallery[index];
+                final isSelected = index == _activeIndex;
+                return GestureDetector(
+                  onTap: () => _goTo(index),
+                  child: Container(
+                    width: 76,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFDF3040)
+                            : const Color(0xFFE7E1D8),
+                        width: 1.5,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0xFFE7E1D8),
+                            ),
+                            child: Icon(Icons.image_not_supported_outlined),
+                          ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              gallery.length,
+              (index) => Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: index == _activeIndex
+                      ? const Color(0xFFDF3040)
+                      : const Color(0xFFD1D5DB),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        _AzerbaijanSalesCard(vehicle: vehicle),
+        const SizedBox(height: 14),
+        _InfoCard(
+          title: 'Overview',
+          rows: [
+            _InfoRow('Make', vehicle.make.isEmpty ? '-' : vehicle.make),
+            _InfoRow('Model', vehicle.model.isEmpty ? '-' : vehicle.model),
+            _InfoRow(
+              'Edition',
+              fallback?.title.isNotEmpty == true ? fallback!.title : '-',
+            ),
+            _InfoRow('Year', vehicle.year?.toString() ?? '-'),
+            _InfoRow(
+              'Body Style',
+              vehicle.bodyType.isEmpty ? '-' : vehicle.bodyType,
+            ),
+            _InfoRow('Color', vehicle.color.isEmpty ? '-' : vehicle.color),
+            _InfoRow(
+              'Engine',
+              vehicle.engine.isEmpty
+                  ? (vehicle.engineType.isEmpty ? '-' : vehicle.engineType)
+                  : vehicle.engine,
+            ),
+            _InfoRow('Fuel', vehicle.fuel.isEmpty ? '-' : vehicle.fuel),
+            _InfoRow(
+              'Odometer',
+              vehicle.odometer == null
+                  ? '-'
+                  : '${formatWholeNumber(vehicle.odometer!)} km',
+            ),
+            _InfoRow(
+              'Transmission',
+              vehicle.transmission.isEmpty ? '-' : vehicle.transmission,
+            ),
+            _InfoRow('Drive', vehicle.drive.isEmpty ? '-' : vehicle.drive),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _InfoCard(
+          title: 'VIN',
+          rows: [
+            _InfoRow('VIN', vehicle.vin.isEmpty ? '-' : vehicle.vin),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _InfoCard(
+          title: 'Description',
+          rows: [
+            _InfoRow(
+              'Details',
+              vehicle.description.isEmpty
+                  ? 'Additional details will appear here.'
+                  : vehicle.description,
+              multiline: true,
+            ),
+          ],
+        ),
+        if (highlights.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: highlights
+                .map(
+                  (item) => Chip(
+                    backgroundColor: const Color(0xFF4B5563),
+                    label: Text(
+                      item,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    avatar: const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    shape: const StadiumBorder(),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+        const SizedBox(height: 18),
+        Text(
+          'Similar Vehicles',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 10),
+        if (widget.similarVehicles.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE7E1D8)),
+            ),
+            child: const Text('No similar vehicles available for this configuration.'),
+          )
+        else
+          ...widget.similarVehicles.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: VehicleCardTile(
+                vehicle: item,
+                isWishlisted: widget.wishlist.contains(item.id),
+                onToggleWishlist: () => widget.onToggleWishlist(item.id),
+                onTap: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VehicleDetailsPage(
+                        vehicleId: item.id,
+                        initialVehicle: item,
+                        embedded: true,
+                        variant: VehicleDetailsVariant.azerbaijan,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AzerbaijanSalesCard extends StatelessWidget {
+  const _AzerbaijanSalesCard({required this.vehicle});
+
+  final VehicleDetails vehicle;
+
+  @override
+  Widget build(BuildContext context) {
+    final price = formatCurrency(vehicle.price, vehicle.currency);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Sales Details',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      price,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '(${formatWholeNumber(vehicle.price)} AZN)',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF6B7280),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Country',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6B7280),
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.flag_rounded, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        vehicle.country.isEmpty ? 'Azerbaijan' : vehicle.country,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {},
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E8B57),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              child: const Text('Write us'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            readOnly: true,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+              hintText: '+994 (50) 555 34 85',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArrowButton extends StatelessWidget {
+  const _ArrowButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 1,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: 20),
+        ),
+      ),
     );
   }
 }
