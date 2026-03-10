@@ -20,7 +20,7 @@ class VehicleCardTile extends StatefulWidget {
     this.autoPlayGallery = false,
     this.showImageNavigation = false,
     this.showImageIndicators = false,
-    this.cardRadius = 22,
+    this.cardRadius = 5,
   });
 
   final VehicleSummary vehicle;
