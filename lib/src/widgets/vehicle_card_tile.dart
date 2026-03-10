@@ -193,7 +193,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -238,7 +238,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       formatCurrency(
                         widget.vehicle.price,
@@ -249,9 +249,9 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Row(
                       children: resolvedFacts
                           .take(3)
@@ -262,15 +262,15 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                           )
                           .toList(),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     const Divider(height: 1, color: Color(0xFFE1E5EB)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 2),
                     TextButton(
                       onPressed: widget.onTap,
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFFDF3040),
                         padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 40),
+                        minimumSize: const Size(0, 28),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Row(
@@ -347,7 +347,7 @@ class _VehicleImageCarousel extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(imageRadius),
       child: AspectRatio(
-        aspectRatio: 1.55,
+        aspectRatio: 1.7,
         child: Stack(
           fit: StackFit.expand,
           children: [
