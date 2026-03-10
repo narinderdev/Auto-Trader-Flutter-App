@@ -213,10 +213,26 @@ class _AppHeaderState extends State<_AppHeader> {
     final selected = await showMenu<String>(
       context: context,
       position: position,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      items: const [
-        PopupMenuItem(value: 'AZ', child: Text('AZ')),
-        PopupMenuItem(value: 'EN', child: Text('EN')),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      items: [
+        PopupMenuItem(
+          value: 'AZ',
+          padding: EdgeInsets.zero,
+          height: 36,
+          child: _LanguageMenuItem(
+            label: 'AZ',
+            isSelected: _language == 'AZ',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'EN',
+          padding: EdgeInsets.zero,
+          height: 36,
+          child: _LanguageMenuItem(
+            label: 'EN',
+            isSelected: _language == 'EN',
+          ),
+        ),
       ],
     );
     if (selected != null && selected != _language) {
@@ -636,6 +652,35 @@ class _SearchSuggestion {
 
   final String title;
   final String subtitle;
+}
+
+class _LanguageMenuItem extends StatelessWidget {
+  const _LanguageMenuItem({
+    required this.label,
+    required this.isSelected,
+  });
+
+  final String label;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isSelected ? Colors.white : const Color(0xFF111827),
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
 }
 
 class _NavItem extends StatelessWidget {
