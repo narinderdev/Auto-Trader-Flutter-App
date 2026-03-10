@@ -146,6 +146,7 @@ class FilterMetadata {
     required this.makes,
     required this.models,
     required this.countries,
+    required this.fuels,
     required this.fromYears,
     required this.toYears,
   });
@@ -153,6 +154,7 @@ class FilterMetadata {
   final List<LabeledOption> makes;
   final List<LabeledOption> models;
   final List<LabeledOption> countries;
+  final List<LabeledOption> fuels;
   final List<int> fromYears;
   final List<int> toYears;
 
@@ -186,6 +188,11 @@ class FilterMetadata {
         'origin_countries',
         'originCountries',
       ]),
+      fuels: _firstPopulatedOptions(source, const [
+        'fuel_types',
+        'fuels',
+        'fuel',
+      ]),
       fromYears: _parseYearList(source['from_years']),
       toYears: _parseYearList(source['to_years']),
     );
@@ -195,6 +202,7 @@ class FilterMetadata {
     makes: <LabeledOption>[],
     models: <LabeledOption>[],
     countries: <LabeledOption>[],
+    fuels: <LabeledOption>[],
     fromYears: <int>[],
     toYears: <int>[],
   );

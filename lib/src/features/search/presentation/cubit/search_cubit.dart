@@ -156,12 +156,16 @@ class SearchCubit extends Cubit<SearchState> {
       return current;
     }
 
+    final fuelOptions = vehicleAttributes.fuels.isNotEmpty
+        ? vehicleAttributes.fuels
+        : filterMetadata.fuels;
+
     return filters.copyWith(
       make: resolveOption(filters.make, filterMetadata.makes),
       model: resolveOption(filters.model, filterMetadata.models),
       country: resolveOption(filters.country, filterMetadata.countries),
       bodyType: resolveOption(filters.bodyType, vehicleAttributes.bodyTypes),
-      fuel: resolveOption(filters.fuel, vehicleAttributes.fuels),
+      fuel: resolveOption(filters.fuel, fuelOptions),
       engineType: resolveOption(
         filters.engineType,
         vehicleAttributes.engineTypes,

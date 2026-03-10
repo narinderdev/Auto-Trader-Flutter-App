@@ -118,6 +118,24 @@ class _SearchViewState extends State<_SearchView> {
     return BlocBuilder<SearchCubit, SearchState>(
       builder: (context, state) {
         final filteredResults = _applyQuickFilter(state.results);
+        final total = state.total;
+        final hasResults = filteredResults.isNotEmpty;
+        final pageStart = hasResults ? ((state.page - 1) * state.limit) + 1 : 0;
+        final pageEnd =
+            ((state.page - 1) * state.limit) + filteredResults.length;
+        final showingText = total != null
+            ? 'Showing $pageStart-$pageEnd of $total Results'
+            : hasResults
+            ? 'Showing $pageStart-$pageEnd Results'
+            : 'Showing 0 Results';
+        final hasKnownTotal = state.totalPages != null;
+        final canPaginate = hasResults &&
+            (hasKnownTotal
+                ? state.totalPages! > 1
+                : state.page > 1 || filteredResults.length == state.limit);
+        final hasNextPage = hasKnownTotal
+            ? state.page < state.totalPages!
+            : filteredResults.length == state.limit;
         final content = SafeArea(
           child: state.isBusy && state.results.isEmpty
               ? const Center(child: CircularProgressIndicator())
@@ -150,15 +168,14 @@ class _SearchViewState extends State<_SearchView> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Showing ${filteredResults.length} Results',
+                              showingText,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                           ),
                         ],
                       ),
-                      if (state.errorMessage != null &&
-                          filteredResults.isNotEmpty) ...[
+                      if (state.errorMessage != null) ...[
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -196,9 +213,7 @@ class _SearchViewState extends State<_SearchView> {
                           ),
                         ),
                       const SizedBox(height: 8),
-                      if (filteredResults.isNotEmpty &&
-                          state.totalPages != null &&
-                          state.totalPages! > 1)
+                      if (canPaginate)
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -214,11 +229,13 @@ class _SearchViewState extends State<_SearchView> {
                                 ),
                                 const Spacer(),
                                 Text(
-                                  'Page ${state.page} of ${state.totalPages}',
+                                  hasKnownTotal
+                                      ? 'Page ${state.page} of ${state.totalPages}'
+                                      : 'Page ${state.page}',
                                 ),
                                 const Spacer(),
                                 FilledButton(
-                                  onPressed: state.page < state.totalPages!
+                                  onPressed: hasNextPage
                                       ? () => context
                                             .read<SearchCubit>()
                                             .goToPage(state.page + 1)
@@ -969,7 +986,9 @@ class _FiltersPage extends StatelessWidget {
                           MaterialPageRoute<void>(
                             builder: (_) => _FilterOptionsPage(
                               title: 'Fuel Type',
-                              options: state.vehicleAttributes.fuels,
+                              options: state.vehicleAttributes.fuels.isNotEmpty
+                                  ? state.vehicleAttributes.fuels
+                                  : state.filterMetadata.fuels,
                               selected: filters.fuel,
                               onApply: (value) async {
                                 await cubit.applyFilters(
