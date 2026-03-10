@@ -1298,97 +1298,83 @@ class _QuickSearchCard extends StatelessWidget {
     return Align(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: const Color(0xFFE4E7F4)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 20,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 720 ? 2 : 1;
-                const spacing = 12.0;
-                final itemWidth =
-                    (constraints.maxWidth - (spacing * (columns - 1))) /
-                    columns;
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 720 ? 2 : 1;
+              const spacing = 12.0;
+              final itemWidth =
+                  (constraints.maxWidth - (spacing * (columns - 1))) /
+                  columns;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children: [
-                        for (final item in items)
-                          SizedBox(width: itemWidth, child: item),
-                        SizedBox(
-                          width: itemWidth,
-                          child: FilledButton.icon(
-                            onPressed: state.isSubmittingQuickSearch
-                                ? null
-                                : () async {
-                                    final filters =
-                                        await cubit.submitQuickSearch();
-                                    if (filters == null || !context.mounted) {
-                                      return;
-                                    }
-                                    await Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) =>
-                                            SearchPage(initialFilters: filters),
-                                      ),
-                                    );
-                                  },
-                            icon: state.isSubmittingQuickSearch
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final item in items)
+                        SizedBox(width: itemWidth, child: item),
+                      SizedBox(
+                        width: itemWidth,
+                        child: FilledButton.icon(
+                          onPressed: state.isSubmittingQuickSearch
+                              ? null
+                              : () async {
+                                  final filters =
+                                      await cubit.submitQuickSearch();
+                                  if (filters == null || !context.mounted) {
+                                    return;
+                                  }
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          SearchPage(initialFilters: filters),
                                     ),
-                                  )
-                                : const Icon(Icons.search_rounded, size: 18),
-                            label: const Text('Find Your Car'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFD21D39),
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
+                                  );
+                                },
+                          icon: state.isSubmittingQuickSearch
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.search_rounded, size: 18),
+                          label: const Text('Find Your Car'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD21D39),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    if (state.quickSearchError != null) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        state.quickSearchError!,
-                        style: const TextStyle(
-                          color: Color(0xFFB4232F),
-                          fontWeight: FontWeight.w700,
-                        ),
                       ),
                     ],
+                  ),
+                  if (state.quickSearchError != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      state.quickSearchError!,
+                      style: const TextStyle(
+                        color: Color(0xFFB4232F),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
-                );
-              },
-            ),
+                ],
+              );
+            },
           ),
         ),
       ),
