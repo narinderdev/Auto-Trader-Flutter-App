@@ -145,14 +145,6 @@ class _SearchViewState extends State<_SearchView> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                     children: [
-                      _FiltersCard(
-                        state: state,
-                        priceMinController: _priceMinController,
-                        priceMaxController: _priceMaxController,
-                        odometerMinController: _odometerMinController,
-                        odometerMaxController: _odometerMaxController,
-                      ),
-                      const SizedBox(height: 18),
                       _QuickFiltersRow(
                         activeFilter: _quickFilter,
                         onSelect: (filter) {
@@ -162,6 +154,14 @@ class _SearchViewState extends State<_SearchView> {
                                 : filter;
                           });
                         },
+                      ),
+                      const SizedBox(height: 12),
+                      _FiltersCard(
+                        state: state,
+                        priceMinController: _priceMinController,
+                        priceMaxController: _priceMaxController,
+                        odometerMinController: _odometerMinController,
+                        odometerMaxController: _odometerMaxController,
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -1554,6 +1554,16 @@ class _SearchResultCardState extends State<_SearchResultCard> {
     final lotNumber = vehicle.lotNumber.isEmpty ? '-' : vehicle.lotNumber;
     final primaryDamage =
         vehicle.primaryDamage.isEmpty ? '-' : vehicle.primaryDamage;
+    final fuelType = vehicle.fuel.isNotEmpty
+        ? vehicle.fuel
+        : vehicle.engineType.isNotEmpty
+        ? vehicle.engineType
+        : '-';
+    final transmission = vehicle.transmission.isNotEmpty
+        ? vehicle.transmission
+        : vehicle.drive.isNotEmpty
+        ? vehicle.drive
+        : '-';
 
     return Container(
       decoration: BoxDecoration(
@@ -1633,6 +1643,33 @@ class _SearchResultCardState extends State<_SearchResultCard> {
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: const Color(0xFF111827),
                               ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SearchFactColumn(
+                                icon: Icons.speed_outlined,
+                                label: 'Odometer',
+                                value: '$odometerText (Actual)',
+                              ),
+                            ),
+                            Expanded(
+                              child: _SearchFactColumn(
+                                icon: Icons.local_gas_station_outlined,
+                                label: 'Fuel Type',
+                                value: fuelType,
+                              ),
+                            ),
+                            Expanded(
+                              child: _SearchFactColumn(
+                                icon:
+                                    Icons.settings_input_component_outlined,
+                                label: 'Transmission',
+                                value: transmission,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1746,6 +1783,52 @@ class _DetailRow extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+}
+
+class _SearchFactColumn extends StatelessWidget {
+  const _SearchFactColumn({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: const Color(0xFFDF3040), size: 18),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF8B92A7),
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF323338),
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
