@@ -121,6 +121,14 @@ class _HomeViewState extends State<_HomeView> {
                                             label: 'Electric',
                                             id: 'Electric',
                                           ),
+                                          primaryDamage: LabeledOption(
+                                            label: 'Minor Dent/Scratches',
+                                            id: 'Minor Dent/Scratches',
+                                          ),
+                                          secondaryDamage: LabeledOption(
+                                            label: 'Normal Wear',
+                                            id: 'Normal Wear',
+                                          ),
                                         ),
                                       ),
                                       eyebrowBuilder: (vehicle) => _cardEyebrow(

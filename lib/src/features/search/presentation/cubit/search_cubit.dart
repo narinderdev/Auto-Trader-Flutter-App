@@ -159,6 +159,8 @@ class SearchCubit extends Cubit<SearchState> {
     final fuelOptions = vehicleAttributes.fuels.isNotEmpty
         ? vehicleAttributes.fuels
         : filterMetadata.fuels;
+    final primaryDamageOptions = vehicleAttributes.primaryDamages;
+    final secondaryDamageOptions = vehicleAttributes.secondaryDamages;
 
     return filters.copyWith(
       make: resolveOption(filters.make, filterMetadata.makes),
@@ -166,6 +168,9 @@ class SearchCubit extends Cubit<SearchState> {
       country: resolveOption(filters.country, filterMetadata.countries),
       bodyType: resolveOption(filters.bodyType, vehicleAttributes.bodyTypes),
       fuel: resolveOption(filters.fuel, fuelOptions),
+      primaryDamage: resolveOption(filters.primaryDamage, primaryDamageOptions),
+      secondaryDamage:
+          resolveOption(filters.secondaryDamage, secondaryDamageOptions),
       engineType: resolveOption(
         filters.engineType,
         vehicleAttributes.engineTypes,

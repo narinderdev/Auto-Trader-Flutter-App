@@ -516,6 +516,18 @@ class _FiltersCard extends StatelessWidget {
         (current) => current.copyWith(fuel: null),
       );
     }
+    if (filters.primaryDamage != null) {
+      addOption(
+        filters.primaryDamage!.label,
+        (current) => current.copyWith(primaryDamage: null),
+      );
+    }
+    if (filters.secondaryDamage != null) {
+      addOption(
+        filters.secondaryDamage!.label,
+        (current) => current.copyWith(secondaryDamage: null),
+      );
+    }
     if (filters.bodyType != null) {
       addOption(
         filters.bodyType!.label,
@@ -993,6 +1005,41 @@ class _FiltersPage extends StatelessWidget {
                               onApply: (value) async {
                                 await cubit.applyFilters(
                                   filters.copyWith(fuel: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Primary Damage',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Primary Damage',
+                              options: state.vehicleAttributes.primaryDamages,
+                              selected: filters.primaryDamage,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(primaryDamage: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Secondary Damage',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Secondary Damage',
+                              options:
+                                  state.vehicleAttributes.secondaryDamages,
+                              selected: filters.secondaryDamage,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(secondaryDamage: value),
                                 );
                               },
                             ),

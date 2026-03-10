@@ -212,6 +212,8 @@ class VehicleAttributes {
   const VehicleAttributes({
     required this.bodyTypes,
     required this.fuels,
+    required this.primaryDamages,
+    required this.secondaryDamages,
     required this.engineTypes,
     required this.transmissions,
     required this.drives,
@@ -223,6 +225,8 @@ class VehicleAttributes {
 
   final List<LabeledOption> bodyTypes;
   final List<LabeledOption> fuels;
+  final List<LabeledOption> primaryDamages;
+  final List<LabeledOption> secondaryDamages;
   final List<LabeledOption> engineTypes;
   final List<LabeledOption> transmissions;
   final List<LabeledOption> drives;
@@ -242,6 +246,18 @@ class VehicleAttributes {
         'fuel_types',
         'fuels',
         'fuel',
+      ]),
+      primaryDamages: _firstPopulatedOptions(json, const [
+        'primary_damages',
+        'primary_damage',
+        'damage_primary',
+        'primary_damage_options',
+      ]),
+      secondaryDamages: _firstPopulatedOptions(json, const [
+        'secondary_damages',
+        'secondary_damage',
+        'damage_secondary',
+        'secondary_damage_options',
       ]),
       engineTypes: _firstPopulatedOptions(json, const [
         'engine_types',
@@ -282,6 +298,8 @@ class VehicleAttributes {
   static const empty = VehicleAttributes(
     bodyTypes: <LabeledOption>[],
     fuels: <LabeledOption>[],
+    primaryDamages: <LabeledOption>[],
+    secondaryDamages: <LabeledOption>[],
     engineTypes: <LabeledOption>[],
     transmissions: <LabeledOption>[],
     drives: <LabeledOption>[],
@@ -298,6 +316,8 @@ class VehicleSearchFilters {
     this.model,
     this.bodyType,
     this.fuel,
+    this.primaryDamage,
+    this.secondaryDamage,
     this.engineType,
     this.transmission,
     this.drive,
@@ -315,6 +335,8 @@ class VehicleSearchFilters {
   final LabeledOption? model;
   final LabeledOption? bodyType;
   final LabeledOption? fuel;
+  final LabeledOption? primaryDamage;
+  final LabeledOption? secondaryDamage;
   final LabeledOption? engineType;
   final LabeledOption? transmission;
   final LabeledOption? drive;
@@ -334,6 +356,8 @@ class VehicleSearchFilters {
     Object? model = _unset,
     Object? bodyType = _unset,
     Object? fuel = _unset,
+    Object? primaryDamage = _unset,
+    Object? secondaryDamage = _unset,
     Object? engineType = _unset,
     Object? transmission = _unset,
     Object? drive = _unset,
@@ -353,6 +377,12 @@ class VehicleSearchFilters {
           ? this.bodyType
           : bodyType as LabeledOption?,
       fuel: identical(fuel, _unset) ? this.fuel : fuel as LabeledOption?,
+      primaryDamage: identical(primaryDamage, _unset)
+          ? this.primaryDamage
+          : primaryDamage as LabeledOption?,
+      secondaryDamage: identical(secondaryDamage, _unset)
+          ? this.secondaryDamage
+          : secondaryDamage as LabeledOption?,
       engineType: identical(engineType, _unset)
           ? this.engineType
           : engineType as LabeledOption?,
@@ -382,6 +412,8 @@ class VehicleSearchFilters {
         model != null ||
         bodyType != null ||
         fuel != null ||
+        primaryDamage != null ||
+        secondaryDamage != null ||
         engineType != null ||
         transmission != null ||
         drive != null ||
@@ -411,6 +443,18 @@ class VehicleSearchFilters {
       option: fuel,
       idKey: 'fuel_type',
       fallbackKey: 'fuel_type',
+    );
+    _putOption(
+      params,
+      option: primaryDamage,
+      idKey: 'primary_damage',
+      fallbackKey: 'primary_damage',
+    );
+    _putOption(
+      params,
+      option: secondaryDamage,
+      idKey: 'secondary_damage',
+      fallbackKey: 'secondary_damage',
     );
     _putOption(
       params,
