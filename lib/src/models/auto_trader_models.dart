@@ -834,6 +834,16 @@ class VehicleSummary {
       'VehicleSummary',
       json: json,
       source: source,
+      raws: {
+        'title_code': source['title_code'],
+        'titleCode': source['titleCode'],
+        'primary_damage': source['primary_damage'],
+        'primaryDamage': source['primaryDamage'],
+        'secondary_damage': source['secondary_damage'],
+        'secondaryDamage': source['secondaryDamage'],
+        'cylinders': source['cylinders'],
+        'keys': source['keys'],
+      },
       values: {
         'vin': vin,
         'odometer': odometer,
@@ -1073,7 +1083,7 @@ class VehicleDetails {
     }
 
     final descriptionPairs = _extractDescriptionPairs(
-      source['description_pairs'] ?? source['details'],
+      source['description_pairs'] ?? source['details'] ?? source['documents'],
     );
 
     final badges = <String>[];
@@ -1091,6 +1101,19 @@ class VehicleDetails {
       'VehicleDetails',
       json: json,
       source: source,
+      pairs: descriptionPairs,
+      raws: {
+        'title_code': source['title_code'],
+        'titleCode': source['titleCode'],
+        'primary_damage': source['primary_damage'],
+        'primaryDamage': source['primaryDamage'],
+        'secondary_damage': source['secondary_damage'],
+        'secondaryDamage': source['secondaryDamage'],
+        'cylinders': source['cylinders'],
+        'keys': source['keys'],
+        'documents': source['documents'],
+        'description_pairs': source['description_pairs'],
+      },
       values: {
         'vin': _pickString(
           source['vin'],
@@ -1550,6 +1573,8 @@ void _debugLogVehicleFields(
   required Map<String, dynamic> json,
   required Map<String, dynamic> source,
   required Map<String, Object?> values,
+  Map<String, String>? pairs,
+  Map<String, Object?>? raws,
 }) {
   if (!kDebugMode) {
     return;
@@ -1568,6 +1593,17 @@ void _debugLogVehicleFields(
   debugPrint(
     '$label raw keys: ${json.keys.take(40).join(', ')}',
   );
+  if (pairs != null && pairs.isNotEmpty) {
+    debugPrint(
+      '$label description_pairs keys: ${pairs.keys.take(40).join(', ')}',
+    );
+  }
+  if (raws != null && raws.isNotEmpty) {
+    raws.forEach((key, value) {
+      if (value == null) return;
+      debugPrint('$label raw $key: $value');
+    });
+  }
 }
 
 bool _hasValue(dynamic value) {
@@ -1645,33 +1681,87 @@ String? _pickYesNo([
 
 Map<String, String> _extractDescriptionPairs(dynamic raw) {
   final result = <String, String>{};
-  if (raw is List) {
-    for (final item in raw) {
-      if (item is! Map) {
+
+  dynamic resolved = raw;
+  if (resolved is Map) {
+    final nested =
+        resolved['data'] ??
+        resolved['items'] ??
+        resolved['list'] ??
+        resolved['pairs'] ??
+        resolved['documents'] ??
+        resolved['details'] ??
+        resolved['description_pairs'];
+    if (nested is List) {
+      resolved = nested;
+    }
+  }
+
+  if (resolved is List) {
+    for (final item in resolved) {
+      if (item is Map) {
+        final key = _pickString(
+          item['label'],
+          item['name'],
+          item['key'],
+          item['title'],
+          item['field'],
+        );
+        final value = _pickString(
+          item['value'],
+          item['text'],
+          item['description'],
+          item['data'],
+          item['content'],
+          item['detail'],
+          item['details'],
+          item['info'],
+          item['value_text'] ?? item['valueText'],
+        );
+        if (key == null || value == null) {
+          continue;
+        }
+        result[_normalizePairKey(key)] = value;
         continue;
       }
-      final key = _pickString(
-        item['label'],
-        item['name'],
-        item['key'],
-        item['title'],
-      );
-      final value = _pickString(
-        item['value'],
-        item['text'],
-        item['description'],
-        item['data'],
-        item['content'],
-      );
-      if (key == null || value == null) {
+
+      if (item is List && item.length >= 2) {
+        final key = _normalizeString(item[0]);
+        final value = _normalizeString(item[1]);
+        if (key != null && value != null) {
+          result[_normalizePairKey(key)] = value;
+        }
         continue;
       }
-      result[_normalizePairKey(key)] = value;
+
+      if (item is String) {
+        final rawText = item.trim();
+        if (rawText.isEmpty) {
+          continue;
+        }
+        String? key;
+        String? value;
+        final colonParts = rawText.split(':');
+        if (colonParts.length >= 2) {
+          key = colonParts.first.trim();
+          value = colonParts.sublist(1).join(':').trim();
+        } else {
+          final dashParts = rawText.split(' - ');
+          if (dashParts.length >= 2) {
+            key = dashParts.first.trim();
+            value = dashParts.sublist(1).join(' - ').trim();
+          }
+        }
+        if (key != null && value != null && key.isNotEmpty && value.isNotEmpty) {
+          result[_normalizePairKey(key)] = value;
+        }
+      }
     }
     return result;
   }
-  if (raw is Map) {
-    raw.forEach((key, value) {
+
+  if (resolved is Map) {
+    resolved.forEach((key, value) {
       final normalizedKey = _normalizePairKey(key.toString());
       final normalizedValue = _normalizeString(value);
       if (normalizedValue != null) {
