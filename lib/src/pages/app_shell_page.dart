@@ -249,19 +249,19 @@ class _AppHeaderState extends State<_AppHeader> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       constraints: const BoxConstraints(minWidth: 0),
       items: [
-        PopupMenuItem(
-          value: 'AZ',
-          padding: EdgeInsets.zero,
-          height: 32,
-          child: _LanguageMenuItem(
-            label: 'AZ',
-            isSelected: _language == 'AZ',
-          ),
-        ),
+     PopupMenuItem(
+  value: 'AZ',
+  padding: EdgeInsets.zero,
+  height: 0,
+  child: _LanguageMenuItem(
+    label: 'AZ',
+    isSelected: _language == 'AZ',
+  ),
+),
         PopupMenuItem(
           value: 'EN',
           padding: EdgeInsets.zero,
-          height: 32,
+          height: 0,
           child: _LanguageMenuItem(
             label: 'EN',
             isSelected: _language == 'EN',
@@ -687,7 +687,6 @@ class _SearchSuggestion {
   final String title;
   final String subtitle;
 }
-
 class _LanguageMenuItem extends StatelessWidget {
   const _LanguageMenuItem({
     required this.label,
@@ -700,12 +699,9 @@ class _LanguageMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.zero,
+      width: double.infinity,
+      color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
-        borderRadius: BorderRadius.circular(5),
-      ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(

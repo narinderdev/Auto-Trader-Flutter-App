@@ -222,7 +222,10 @@ class _HomeViewState extends State<_HomeView> {
   void _openSearch(VehicleSearchFilters filters) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SearchPage(initialFilters: filters),
+        builder: (_) => SearchPage(
+          initialFilters: filters,
+          showScaffold: false,
+        ),
       ),
     );
   }
@@ -1377,12 +1380,14 @@ class _QuickSearchCard extends StatelessWidget {
                                   if (filters == null || !context.mounted) {
                                     return;
                                   }
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          SearchPage(initialFilters: filters),
-                                    ),
-                                  );
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => SearchPage(
+                                          initialFilters: filters,
+                                          showScaffold: false,
+                                        ),
+                                      ),
+                                    );
                                 },
                           icon: state.isSubmittingQuickSearch
                               ? const SizedBox(

@@ -265,189 +265,239 @@ class _FiltersCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<SearchCubit>();
     final filters = state.filters;
+    final selectedChips = _buildSelectedFilters(filters);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (selectedChips.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected filters:',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF6B7280),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final chip in selectedChips)
+                      _SelectedFilterChip(
+                        label: chip.label,
+                        onRemove: () async {
+                          await cubit.applyFilters(chip.onRemove(filters));
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+        Row(
           children: [
-            Text(
-              'Filters',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _OptionField(
-                  title: 'Make',
-                  options: state.filterMetadata.makes,
-                  value: filters.make,
-                  onChanged: (value) => cubit.updateFilters(
-                    filters.copyWith(make: value, model: null),
-                  ),
-                ),
-                _OptionField(
-                  title: 'Model',
-                  options: state.filterMetadata.models,
-                  value: filters.model,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(model: value)),
-                ),
-                _OptionField(
-                  title: 'Country',
-                  options: countryOptionsWithAuction(
-                    state.filterMetadata.countries,
-                  ),
-                  value: filters.country,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(country: value)),
-                ),
-                _OptionField(
-                  title: 'Fuel',
-                  options: state.vehicleAttributes.fuels,
-                  value: filters.fuel,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(fuel: value)),
-                ),
-                _OptionField(
-                  title: 'Body style',
-                  options: state.vehicleAttributes.bodyTypes,
-                  value: filters.bodyType,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(bodyType: value)),
-                ),
-                _OptionField(
-                  title: 'Transmission',
-                  options: state.vehicleAttributes.transmissions,
-                  value: filters.transmission,
-                  onChanged: (value) => cubit.updateFilters(
-                    filters.copyWith(transmission: value),
-                  ),
-                ),
-                _OptionField(
-                  title: 'Drive',
-                  options: state.vehicleAttributes.drives,
-                  value: filters.drive,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(drive: value)),
-                ),
-                _OptionField(
-                  title: 'Color',
-                  options: state.vehicleAttributes.colors,
-                  value: filters.color,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(color: value)),
-                ),
-                _YearField(
-                  title: 'From year',
-                  values: _yearOptions(
-                    state.filterMetadata.fromYears,
-                    state.vehicleAttributes.yearRange,
-                  ),
-                  value: filters.yearFrom,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(yearFrom: value)),
-                ),
-                _YearField(
-                  title: 'To year',
-                  values: _yearOptions(
-                    state.filterMetadata.toYears,
-                    state.vehicleAttributes.yearRange,
-                  ),
-                  value: filters.yearTo,
-                  onChanged: (value) =>
-                      cubit.updateFilters(filters.copyWith(yearTo: value)),
-                ),
-                _NumberField(
-                  title: 'Price min',
-                  controller: priceMinController,
-                  hint: state.vehicleAttributes.priceRange == null
-                      ? 'Min'
-                      : '${state.vehicleAttributes.priceRange!.min.round()}',
-                ),
-                _NumberField(
-                  title: 'Price max',
-                  controller: priceMaxController,
-                  hint: state.vehicleAttributes.priceRange == null
-                      ? 'Max'
-                      : '${state.vehicleAttributes.priceRange!.max.round()}',
-                ),
-                _NumberField(
-                  title: 'Odometer min',
-                  controller: odometerMinController,
-                  hint: state.vehicleAttributes.odometerRange == null
-                      ? 'Min'
-                      : '${state.vehicleAttributes.odometerRange!.min.round()}',
-                ),
-                _NumberField(
-                  title: 'Odometer max',
-                  controller: odometerMaxController,
-                  hint: state.vehicleAttributes.odometerRange == null
-                      ? 'Max'
-                      : '${state.vehicleAttributes.odometerRange!.max.round()}',
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () async {
-                      final nextFilters = filters.copyWith(
-                        priceMin: _parseIntOrNull(priceMinController.text),
-                        priceMax: _parseIntOrNull(priceMaxController.text),
-                        odometerMin: _parseIntOrNull(
-                          odometerMinController.text,
-                        ),
-                        odometerMax: _parseIntOrNull(
-                          odometerMaxController.text,
-                        ),
-                      );
-                      await cubit.applyFilters(nextFilters);
-                    },
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: const Color(0xFFB4232F),
-                      foregroundColor: Colors.white,
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _FiltersPage(
+                        priceMinController: priceMinController,
+                        priceMaxController: priceMaxController,
+                        odometerMinController: odometerMinController,
+                        odometerMaxController: odometerMaxController,
+                      ),
                     ),
-                    child: const Text('Apply filters'),
-                  ),
+                  );
+                },
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Filters'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: const Color(0xFF111827),
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
                 ),
-                const SizedBox(width: 12),
-                TextButton(
-                  onPressed: () async {
-                    priceMinController.clear();
-                    priceMaxController.clear();
-                    odometerMinController.clear();
-                    odometerMaxController.clear();
-                    await cubit.clearFilters();
-                  },
-                  child: const Text('Reset'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () async {
+                  priceMinController.clear();
+                  priceMaxController.clear();
+                  odometerMinController.clear();
+                  odometerMaxController.clear();
+                  await cubit.clearFilters();
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: const Color(0xFF111827),
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
                 ),
-              ],
+                child: const Text('Clear All Filters'),
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              'Sort by:',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6B7280),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Sale Date'),
+                      Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              height: 38,
+              width: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDF3040),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.swap_vert_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  List<int> _yearOptions(List<int> metadataYears, NumericRange? range) {
-    if (metadataYears.isNotEmpty) {
-      return metadataYears;
+  List<_SelectedFilter> _buildSelectedFilters(VehicleSearchFilters filters) {
+    final selections = <_SelectedFilter>[];
+
+    void addOption(
+      String label,
+      VehicleSearchFilters Function(VehicleSearchFilters current) onRemove,
+    ) {
+      selections.add(_SelectedFilter(label: label, onRemove: onRemove));
     }
-    if (range == null) {
-      return const <int>[];
+
+    if (filters.make != null) {
+      addOption(
+        filters.make!.label,
+        (current) => current.copyWith(make: null),
+      );
     }
-    final min = range.min.round();
-    final max = range.max.round();
-    return [for (var year = max; year >= min; year -= 1) year];
+    if (filters.model != null) {
+      addOption(
+        filters.model!.label,
+        (current) => current.copyWith(model: null),
+      );
+    }
+    if (filters.country != null) {
+      addOption(
+        filters.country!.label,
+        (current) => current.copyWith(country: null),
+      );
+    }
+    if (filters.fuel != null) {
+      addOption(
+        filters.fuel!.label,
+        (current) => current.copyWith(fuel: null),
+      );
+    }
+    if (filters.bodyType != null) {
+      addOption(
+        filters.bodyType!.label,
+        (current) => current.copyWith(bodyType: null),
+      );
+    }
+    if (filters.engineType != null) {
+      addOption(
+        filters.engineType!.label,
+        (current) => current.copyWith(engineType: null),
+      );
+    }
+    if (filters.transmission != null) {
+      addOption(
+        filters.transmission!.label,
+        (current) => current.copyWith(transmission: null),
+      );
+    }
+    if (filters.drive != null) {
+      addOption(
+        filters.drive!.label,
+        (current) => current.copyWith(drive: null),
+      );
+    }
+    if (filters.color != null) {
+      addOption(
+        filters.color!.label,
+        (current) => current.copyWith(color: null),
+      );
+    }
+    if (filters.yearFrom != null || filters.yearTo != null) {
+      final yearLabel = [
+        filters.yearFrom?.toString(),
+        filters.yearTo?.toString(),
+      ].whereType<String>().join(' - ');
+      addOption(
+        'Year $yearLabel',
+        (current) => current.copyWith(yearFrom: null, yearTo: null),
+      );
+    }
+    if (filters.priceMin != null || filters.priceMax != null) {
+      final priceLabel = [
+        filters.priceMin?.toString(),
+        filters.priceMax?.toString(),
+      ].whereType<String>().join(' - ');
+      addOption(
+        'Price $priceLabel',
+        (current) => current.copyWith(priceMin: null, priceMax: null),
+      );
+    }
+    if (filters.odometerMin != null || filters.odometerMax != null) {
+      final odoLabel = [
+        filters.odometerMin?.toString(),
+        filters.odometerMax?.toString(),
+      ].whereType<String>().join(' - ');
+      addOption(
+        'Odometer $odoLabel',
+        (current) => current.copyWith(odometerMin: null, odometerMax: null),
+      );
+    }
+
+    return selections;
   }
 }
 
@@ -468,6 +518,770 @@ class _SearchResultCard extends StatefulWidget {
   State<_SearchResultCard> createState() => _SearchResultCardState();
 }
 
+class _SelectedFilter {
+  const _SelectedFilter({required this.label, required this.onRemove});
+
+  final String label;
+  final VehicleSearchFilters Function(VehicleSearchFilters current) onRemove;
+}
+
+class _SelectedFilterChip extends StatelessWidget {
+  const _SelectedFilterChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2937),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FiltersPage extends StatelessWidget {
+  const _FiltersPage({
+    required this.priceMinController,
+    required this.priceMaxController,
+    required this.odometerMinController,
+    required this.odometerMaxController,
+  });
+
+  final TextEditingController priceMinController;
+  final TextEditingController priceMaxController;
+  final TextEditingController odometerMinController;
+  final TextEditingController odometerMaxController;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<SearchCubit, SearchState>(
+      builder: (context, state) {
+        final cubit = context.read<SearchCubit>();
+        final filters = state.filters;
+        final years = _resolveYearOptions(
+          state.filterMetadata.fromYears,
+          state.vehicleAttributes.yearRange,
+        );
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            'Filters',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 40),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      _FilterListRow(
+                        title: 'Make',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Make',
+                              options: state.filterMetadata.makes,
+                              selected: filters.make,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(make: value, model: null),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Model',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Model',
+                              options: state.filterMetadata.models,
+                              selected: filters.model,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(model: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Year',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _YearRangePage(
+                              years: years,
+                              fromYear: filters.yearFrom,
+                              toYear: filters.yearTo,
+                              onApply: (from, to) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(yearFrom: from, yearTo: to),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Color',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Color',
+                              options: state.vehicleAttributes.colors,
+                              selected: filters.color,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(color: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Odometer',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _RangeFilterPage(
+                              title: 'Odometer',
+                              minLabel: 'Min',
+                              maxLabel: 'Max',
+                              minController: odometerMinController,
+                              maxController: odometerMaxController,
+                              onApply: () async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(
+                                    odometerMin:
+                                        _parseIntOrNull(odometerMinController.text),
+                                    odometerMax:
+                                        _parseIntOrNull(odometerMaxController.text),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Price',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _RangeFilterPage(
+                              title: 'Price',
+                              minLabel: 'Min',
+                              maxLabel: 'Max',
+                              minController: priceMinController,
+                              maxController: priceMaxController,
+                              onApply: () async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(
+                                    priceMin:
+                                        _parseIntOrNull(priceMinController.text),
+                                    priceMax:
+                                        _parseIntOrNull(priceMaxController.text),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Engine Type',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Engine Type',
+                              options: state.vehicleAttributes.engineTypes,
+                              selected: filters.engineType,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(engineType: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Transmission',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Transmission',
+                              options: state.vehicleAttributes.transmissions,
+                              selected: filters.transmission,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(transmission: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Fuel Type',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Fuel Type',
+                              options: state.vehicleAttributes.fuels,
+                              selected: filters.fuel,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(fuel: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Drive',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Drive',
+                              options: state.vehicleAttributes.drives,
+                              selected: filters.drive,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(drive: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Body Style',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Body Style',
+                              options: state.vehicleAttributes.bodyTypes,
+                              selected: filters.bodyType,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(bodyType: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      _FilterListRow(
+                        title: 'Country',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => _FilterOptionsPage(
+                              title: 'Country',
+                              options: countryOptionsWithAuction(
+                                state.filterMetadata.countries,
+                              ),
+                              selected: filters.country,
+                              onApply: (value) async {
+                                await cubit.applyFilters(
+                                  filters.copyWith(country: value),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (filters.country != null) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Country',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: const Color(0xFF6B7280),
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      filters.country!.label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  await cubit.applyFilters(
+                                    filters.copyWith(country: null),
+                                  );
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FilterListRow extends StatelessWidget {
+  const _FilterListRow({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          title: Text(
+            title,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: onTap,
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+}
+
+class _FilterOptionsPage extends StatefulWidget {
+  const _FilterOptionsPage({
+    required this.title,
+    required this.options,
+    required this.selected,
+    required this.onApply,
+  });
+
+  final String title;
+  final List<LabeledOption> options;
+  final LabeledOption? selected;
+  final ValueChanged<LabeledOption?> onApply;
+
+  @override
+  State<_FilterOptionsPage> createState() => _FilterOptionsPageState();
+}
+
+class _FilterOptionsPageState extends State<_FilterOptionsPage> {
+  late final TextEditingController _searchController;
+  LabeledOption? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _selected = widget.selected;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _searchController.text.toLowerCase();
+    final filtered = query.isEmpty
+        ? widget.options
+        : widget.options
+            .where(
+              (option) => option.label.toLowerCase().contains(query),
+            )
+            .toList();
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      setState(() {
+                        _selected = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final option = filtered[index];
+                  final isSelected = _isSameOption(_selected, option);
+                  return ListTile(
+                    title: Text(option.label),
+                    trailing: Checkbox(
+                      value: isSelected,
+                      onChanged: (_) {
+                        setState(() {
+                          _selected = isSelected ? null : option;
+                        });
+                      },
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _selected = isSelected ? null : option;
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _selected == null
+                      ? null
+                      : () {
+                          widget.onApply(_selected);
+                          Navigator.of(context).pop();
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    foregroundColor: const Color(0xFF6B7280),
+                    disabledBackgroundColor: const Color(0xFFE5E7EB),
+                    disabledForegroundColor: const Color(0xFF9CA3AF),
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isSameOption(LabeledOption? current, LabeledOption other) {
+    if (current == null) {
+      return false;
+    }
+    if (current.id != null && other.id != null) {
+      return current.id == other.id;
+    }
+    return current.label == other.label;
+  }
+}
+
+class _YearRangePage extends StatefulWidget {
+  const _YearRangePage({
+    required this.years,
+    required this.fromYear,
+    required this.toYear,
+    required this.onApply,
+  });
+
+  final List<int> years;
+  final int? fromYear;
+  final int? toYear;
+  final void Function(int? from, int? to) onApply;
+
+  @override
+  State<_YearRangePage> createState() => _YearRangePageState();
+}
+
+class _YearRangePageState extends State<_YearRangePage> {
+  int? _fromYear;
+  int? _toYear;
+
+  @override
+  void initState() {
+    super.initState();
+    _fromYear = widget.fromYear;
+    _toYear = widget.toYear;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Year',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  DropdownButtonFormField<int>(
+                    value: _fromYear,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'From year'),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('Any'),
+                      ),
+                      ...widget.years.map(
+                        (year) => DropdownMenuItem<int>(
+                          value: year,
+                          child: Text('$year'),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _fromYear = value;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: _toYear,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'To year'),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('Any'),
+                      ),
+                      ...widget.years.map(
+                        (year) => DropdownMenuItem<int>(
+                          value: year,
+                          child: Text('$year'),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _toYear = value;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    widget.onApply(_fromYear, _toYear);
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Apply'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RangeFilterPage extends StatelessWidget {
+  const _RangeFilterPage({
+    required this.title,
+    required this.minLabel,
+    required this.maxLabel,
+    required this.minController,
+    required this.maxController,
+    required this.onApply,
+  });
+
+  final String title;
+  final String minLabel;
+  final String maxLabel;
+  final TextEditingController minController;
+  final TextEditingController maxController;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: minController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: minLabel),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: maxController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: maxLabel),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    onApply();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Apply'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class _SearchResultCardState extends State<_SearchResultCard> {
   bool _expanded = false;
 
@@ -790,6 +1604,18 @@ int? _parseIntOrNull(String value) {
     return null;
   }
   return int.tryParse(trimmed);
+}
+
+List<int> _resolveYearOptions(List<int> metadataYears, NumericRange? range) {
+  if (metadataYears.isNotEmpty) {
+    return metadataYears;
+  }
+  if (range == null) {
+    return const <int>[];
+  }
+  final min = range.min.round();
+  final max = range.max.round();
+  return [for (var year = max; year >= min; year -= 1) year];
 }
 
 String _optionKey(LabeledOption option) {
