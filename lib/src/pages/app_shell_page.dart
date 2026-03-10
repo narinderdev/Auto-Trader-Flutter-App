@@ -225,27 +225,68 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   final TextEditingController _queryController = TextEditingController();
   bool _auction = true;
   bool _other = false;
+  String _queryText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController.addListener(_handleQueryChanged);
+  }
 
   @override
   void dispose() {
+    _queryController.removeListener(_handleQueryChanged);
     _queryController.dispose();
     super.dispose();
   }
 
+  void _handleQueryChanged() {
+    final next = _queryController.text;
+    if (next == _queryText) {
+      return;
+    }
+    setState(() {
+      _queryText = next;
+    });
+  }
+
+  List<_SearchSuggestion> _suggestions() {
+    if (_queryText.trim().isEmpty) {
+      return const [];
+    }
+    return const [
+      _SearchSuggestion(
+        title: '1HD1KH711RB634834',
+        subtitle: '2024 HARLEY-DAVIDSON\nFL',
+      ),
+      _SearchSuggestion(
+        title: 'Lot 66498035',
+        subtitle: '2024 HARLEY-DAVIDSON\nFL',
+      ),
+      _SearchSuggestion(
+        title: 'HARLEY-DAVIDSON',
+        subtitle: 'FL',
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasQuery = _queryText.trim().isNotEmpty;
+    final suggestions = _suggestions();
+
     return SafeArea(
       child: Material(
         color: Colors.transparent,
         child: Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.center,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 120),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(5),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x1A000000),
@@ -260,19 +301,94 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                   Row(
                     children: [
                       const Icon(Icons.search, color: Color(0xFF9CA3AF)),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: _queryController,
                           decoration: const InputDecoration(
                             hintText: 'Search by make, model, lot, or VIN',
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isDense: true,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 16),
+                  if (hasQuery) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        width: 240,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1A000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: suggestions
+                              .map(
+                                (item) => InkWell(
+                                  onTap: () {
+                                    _queryController.text = item.title;
+                                    _queryController.selection =
+                                        TextSelection.collapsed(
+                                      offset: item.title.length,
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      10,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF111827),
+                                              ),
+                                        ),
+                                        if (item.subtitle.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            item.subtitle,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color:
+                                                      const Color(0xFF6B7280),
+                                                ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Checkbox(
@@ -280,6 +396,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                         onChanged: (value) {
                           setState(() {
                             _auction = value ?? false;
+                            if (_auction) {
+                              _other = false;
+                            }
                           });
                         },
                         activeColor: const Color(0xFFD21D39),
@@ -292,6 +411,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                         onChanged: (value) {
                           setState(() {
                             _other = value ?? false;
+                            if (_other) {
+                              _auction = false;
+                            }
                           });
                         },
                         activeColor: const Color(0xFFD21D39),
@@ -300,10 +422,14 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                       const Text('Other'),
                       const Spacer(),
                       FilledButton(
-                        onPressed: widget.onClose,
+                        onPressed: hasQuery ? widget.onClose : null,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFE5E7EB),
-                          foregroundColor: const Color(0xFF6B7280),
+                          backgroundColor: hasQuery
+                              ? const Color(0xFFD21D39)
+                              : const Color(0xFFE5E7EB),
+                          foregroundColor: hasQuery
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
@@ -433,6 +559,13 @@ class _BottomNavBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SearchSuggestion {
+  const _SearchSuggestion({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
 }
 
 class _NavItem extends StatelessWidget {

@@ -39,6 +39,7 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
   DateTime? _issueDate;
 
   late List<_CustomsResultItem> _resultItems;
+  bool _showErrors = false;
 
   @override
   void initState() {
@@ -57,6 +58,23 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final engineTypeInvalid = _engineType == _engineTypes.first;
+    final invoiceInvalid =
+        (double.tryParse(_invoiceValueController.text.trim()) ?? 0) <= 0;
+    final transportationInvalid =
+        (double.tryParse(_transportationCostsController.text.trim()) ?? 0) <= 0;
+    final otherInvalid =
+        (double.tryParse(_otherExpensesController.text.trim()) ?? 0) <= 0;
+    final engineCapacityInvalid =
+        (double.tryParse(_engineCapacityController.text.trim()) ?? 0) <= 0;
+    final issueDateInvalid = _issueDate == null;
+    final hasErrors = engineTypeInvalid ||
+        invoiceInvalid ||
+        transportationInvalid ||
+        otherInvalid ||
+        engineCapacityInvalid ||
+        issueDateInvalid;
+
     final content = ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       children: [
@@ -87,6 +105,14 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
               otherExpensesController: _otherExpensesController,
               engineCapacityController: _engineCapacityController,
               issueDate: _issueDate,
+              showErrors: _showErrors,
+              engineTypeInvalid: engineTypeInvalid,
+              invoiceInvalid: invoiceInvalid,
+              transportationInvalid: transportationInvalid,
+              otherInvalid: otherInvalid,
+              engineCapacityInvalid: engineCapacityInvalid,
+              issueDateInvalid: issueDateInvalid,
+              showRequiredMessage: _showErrors && hasErrors,
               onVehicleTypeChanged: (value) {
                 if (value == null) {
                   return;
@@ -170,6 +196,29 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
   }
 
   void _calculate() {
+    final engineTypeInvalid = _engineType == _engineTypes.first;
+    final invoiceInvalid =
+        (double.tryParse(_invoiceValueController.text.trim()) ?? 0) <= 0;
+    final transportationInvalid =
+        (double.tryParse(_transportationCostsController.text.trim()) ?? 0) <= 0;
+    final otherInvalid =
+        (double.tryParse(_otherExpensesController.text.trim()) ?? 0) <= 0;
+    final engineCapacityInvalid =
+        (double.tryParse(_engineCapacityController.text.trim()) ?? 0) <= 0;
+    final issueDateInvalid = _issueDate == null;
+
+    if (engineTypeInvalid ||
+        invoiceInvalid ||
+        transportationInvalid ||
+        otherInvalid ||
+        engineCapacityInvalid ||
+        issueDateInvalid) {
+      setState(() {
+        _showErrors = true;
+      });
+      return;
+    }
+
     final invoiceValue =
         double.tryParse(_invoiceValueController.text.trim()) ?? 0;
     final transportCost =
@@ -187,6 +236,7 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
     final certificateFee = _originCountry == 'European Union' ? 60.0 : 90.0;
 
     setState(() {
+      _showErrors = false;
       _resultItems = [
         _CustomsResultItem('Import customs duty', importDuty),
         _CustomsResultItem('Value added tax (VAT)', vat),
@@ -210,6 +260,7 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
 
   void _clear() {
     setState(() {
+      _showErrors = false;
       _vehicleType = _vehicleTypes.first;
       _engineType = _engineTypes.first;
       _originCountry = _originCountries.first;
@@ -251,6 +302,14 @@ class _CustomsVehicleForm extends StatelessWidget {
     required this.otherExpensesController,
     required this.engineCapacityController,
     required this.issueDate,
+    required this.showErrors,
+    required this.engineTypeInvalid,
+    required this.invoiceInvalid,
+    required this.transportationInvalid,
+    required this.otherInvalid,
+    required this.engineCapacityInvalid,
+    required this.issueDateInvalid,
+    required this.showRequiredMessage,
     required this.onVehicleTypeChanged,
     required this.onEngineTypeChanged,
     required this.onOriginCountryChanged,
@@ -267,6 +326,14 @@ class _CustomsVehicleForm extends StatelessWidget {
   final TextEditingController otherExpensesController;
   final TextEditingController engineCapacityController;
   final DateTime? issueDate;
+  final bool showErrors;
+  final bool engineTypeInvalid;
+  final bool invoiceInvalid;
+  final bool transportationInvalid;
+  final bool otherInvalid;
+  final bool engineCapacityInvalid;
+  final bool issueDateInvalid;
+  final bool showRequiredMessage;
   final ValueChanged<String?> onVehicleTypeChanged;
   final ValueChanged<String?> onEngineTypeChanged;
   final ValueChanged<String?> onOriginCountryChanged;
@@ -315,76 +382,62 @@ class _CustomsVehicleForm extends StatelessWidget {
             value: engineType,
             items: const ['Select', 'Petrol', 'Diesel', 'Hybrid', 'Electric'],
             onChanged: onEngineTypeChanged,
+            errorText:
+                showErrors && engineTypeInvalid ? 'This field is required' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _NumberField(
-                  label: 'Invoice value (USD)',
-                  controller: invoiceValueController,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _NumberField(
-                  label: 'Transportation costs (USD)',
-                  controller: transportationCostsController,
-                ),
-              ),
-            ],
+          _NumberField(
+            label: 'Invoice value (USD)',
+            controller: invoiceValueController,
+            errorText:
+                showErrors && invoiceInvalid ? 'This field is required' : null,
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _NumberField(
-                  label: 'Other expenses (USD)',
-                  controller: otherExpensesController,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _NumberField(
-                  label: 'Engine Capacity (cm3)',
-                  controller: engineCapacityController,
-                ),
-              ),
-            ],
+          _NumberField(
+            label: 'Transportation costs (USD)',
+            controller: transportationCostsController,
+            errorText: showErrors && transportationInvalid
+                ? 'This field is required'
+                : null,
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _DateField(
-                  label: 'Date of issue *',
-                  value: issueDate,
-                  onTap: onIssueDateTap,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CalculatorFieldLabel(
-                      'About the country of origin\n(production) and the country of the sender',
-                    ),
-                    const SizedBox(height: 8),
-                    CalculatorDropdown(
-                      value: originCountry,
-                      items: const [
-                        'Other countries',
-                        'United States',
-                        'China',
-                        'European Union',
-                      ],
-                      onChanged: onOriginCountryChanged,
-                    ),
-                  ],
-                ),
-              ),
+          _NumberField(
+            label: 'Other expenses (USD)',
+            controller: otherExpensesController,
+            errorText:
+                showErrors && otherInvalid ? 'This field is required' : null,
+          ),
+          const SizedBox(height: 14),
+          _NumberField(
+            label: 'Engine Capacity (cm3)',
+            controller: engineCapacityController,
+            errorText: showErrors && engineCapacityInvalid
+                ? 'This field is required'
+                : null,
+          ),
+          const SizedBox(height: 14),
+          _DateField(
+            label: 'Date of issue *',
+            value: issueDate,
+            onTap: onIssueDateTap,
+            errorText: showErrors && issueDateInvalid
+                ? 'Date of issue is required'
+                : null,
+          ),
+          const SizedBox(height: 14),
+          const CalculatorFieldLabel(
+            'About the country of origin\n(production) and the country of the sender',
+          ),
+          const SizedBox(height: 8),
+          CalculatorDropdown(
+            value: originCountry,
+            items: const [
+              'Other countries',
+              'United States',
+              'China',
+              'European Union',
             ],
+            onChanged: onOriginCountryChanged,
           ),
           const SizedBox(height: 18),
           Row(
@@ -415,6 +468,16 @@ class _CustomsVehicleForm extends StatelessWidget {
               ),
             ],
           ),
+          if (showRequiredMessage) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Please fill all required fields',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFEF4444),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
         ],
       ),
     );
@@ -425,10 +488,12 @@ class _NumberField extends StatelessWidget {
   const _NumberField({
     required this.label,
     required this.controller,
+    this.errorText,
   });
 
   final String label;
   final TextEditingController controller;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -440,7 +505,7 @@ class _NumberField extends StatelessWidget {
         TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(),
+          decoration: InputDecoration(errorText: errorText),
         ),
       ],
     );
@@ -452,11 +517,13 @@ class _DateField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onTap,
+    this.errorText,
   });
 
   final String label;
   final DateTime? value;
   final VoidCallback onTap;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -472,8 +539,9 @@ class _DateField extends StatelessWidget {
         InkWell(
           onTap: onTap,
           child: InputDecorator(
-            decoration: const InputDecoration(
-              suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+            decoration: InputDecoration(
+              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+              errorText: errorText,
             ),
             child: Text(text),
           ),

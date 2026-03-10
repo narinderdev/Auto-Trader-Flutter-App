@@ -34,6 +34,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   double _shippingFee = 0;
   double _deliveryCost = 0;
   double _finalPrice = 0;
+  bool _showErrors = false;
 
   @override
   void dispose() {
@@ -45,6 +46,11 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final locationMissing = _locationController.text.trim().isEmpty;
+    final bidValue = double.tryParse(_bidAmountController.text.trim());
+    final bidMissing = bidValue == null || bidValue <= 0;
+    final hasErrors = locationMissing || bidMissing;
+
     final content = ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       children: [
@@ -72,6 +78,10 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
               lotNumberController: _lotNumberController,
               locationController: _locationController,
               bidAmountController: _bidAmountController,
+              showErrors: _showErrors,
+              locationInvalid: locationMissing,
+              bidInvalid: bidMissing,
+              showRequiredMessage: _showErrors && hasErrors,
               onAuctionCompanyChanged: (value) {
                 if (value == null) {
                   return;
@@ -143,7 +153,16 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   }
 
   void _calculate() {
-    final bid = double.tryParse(_bidAmountController.text.trim()) ?? 0;
+    final bid = double.tryParse(_bidAmountController.text.trim());
+    final locationMissing = _locationController.text.trim().isEmpty;
+    final bidMissing = bid == null || bid <= 0;
+
+    if (locationMissing || bidMissing) {
+      setState(() {
+        _showErrors = true;
+      });
+      return;
+    }
 
     final auctionFee = switch (_auctionCompany) {
       'Copart' => bid * 0.08 + 120,
@@ -170,6 +189,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
         (_lotNumberController.text.trim().isEmpty ? 0 : 35.0);
 
     setState(() {
+      _showErrors = false;
       _bid = bid;
       _auctionFee = auctionFee;
       _shippingFee = shippingFee;
@@ -180,6 +200,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
 
   void _clear() {
     setState(() {
+      _showErrors = false;
       _auctionCompany = _auctionCompanies.first;
       _vehicleType = _vehicleTypes.first;
       _destination = _destinations.first;
@@ -313,6 +334,10 @@ class _AuctionCalculatorForm extends StatelessWidget {
     required this.lotNumberController,
     required this.locationController,
     required this.bidAmountController,
+    required this.showErrors,
+    required this.locationInvalid,
+    required this.bidInvalid,
+    required this.showRequiredMessage,
     required this.onAuctionCompanyChanged,
     required this.onVehicleTypeChanged,
     required this.onDestinationChanged,
@@ -326,6 +351,10 @@ class _AuctionCalculatorForm extends StatelessWidget {
   final TextEditingController lotNumberController;
   final TextEditingController locationController;
   final TextEditingController bidAmountController;
+  final bool showErrors;
+  final bool locationInvalid;
+  final bool bidInvalid;
+  final bool showRequiredMessage;
   final ValueChanged<String?> onAuctionCompanyChanged;
   final ValueChanged<String?> onVehicleTypeChanged;
   final ValueChanged<String?> onDestinationChanged;
@@ -386,7 +415,11 @@ class _AuctionCalculatorForm extends StatelessWidget {
           const SizedBox(height: 8),
           TextField(
             controller: locationController,
-            decoration: const InputDecoration(hintText: 'Enter location'),
+            decoration: InputDecoration(
+              hintText: 'Enter location',
+              errorText:
+                  showErrors && locationInvalid ? 'This field is required' : null,
+            ),
           ),
           const SizedBox(height: 16),
           const CalculatorFieldLabel('Bid Amount (USD) *'),
@@ -394,7 +427,11 @@ class _AuctionCalculatorForm extends StatelessWidget {
           TextField(
             controller: bidAmountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(hintText: '0.00'),
+            decoration: InputDecoration(
+              hintText: '0.00',
+              errorText:
+                  showErrors && bidInvalid ? 'This field is required' : null,
+            ),
           ),
           const SizedBox(height: 16),
           const CalculatorFieldLabel('Destination *'),
@@ -437,6 +474,16 @@ class _AuctionCalculatorForm extends StatelessWidget {
               ),
             ],
           ),
+          if (showRequiredMessage) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Please fill all required fields',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFEF4444),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
         ],
       ),
     );
@@ -584,11 +631,13 @@ class CalculatorDropdown extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    this.errorText,
   });
 
   final String value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -605,7 +654,7 @@ class CalculatorDropdown extends StatelessWidget {
       onChanged: onChanged,
       isExpanded: true,
       menuMaxHeight: 280,
-      decoration: const InputDecoration(),
+      decoration: InputDecoration(errorText: errorText),
     );
   }
 }
