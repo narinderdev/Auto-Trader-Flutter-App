@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class LabeledOption {
   const LabeledOption({required this.label, this.id, this.count});
 
@@ -558,6 +560,10 @@ class VehicleSummary {
     required this.location,
     required this.make,
     required this.model,
+    this.vin = '',
+    this.titleCode = '',
+    this.cylinders = '',
+    this.keys = '',
   });
 
   final String id;
@@ -586,6 +592,10 @@ class VehicleSummary {
   final String location;
   final String make;
   final String model;
+  final String vin;
+  final String titleCode;
+  final String cylinders;
+  final String keys;
 
   VehicleSummary copyWith({
     String? id,
@@ -614,6 +624,10 @@ class VehicleSummary {
     String? location,
     String? make,
     String? model,
+    String? vin,
+    String? titleCode,
+    String? cylinders,
+    String? keys,
   }) {
     return VehicleSummary(
       id: id ?? this.id,
@@ -642,114 +656,194 @@ class VehicleSummary {
       location: location ?? this.location,
       make: make ?? this.make,
       model: model ?? this.model,
+      vin: vin ?? this.vin,
+      titleCode: titleCode ?? this.titleCode,
+      cylinders: cylinders ?? this.cylinders,
+      keys: keys ?? this.keys,
     );
   }
 
   factory VehicleSummary.fromJson(Map<String, dynamic> json, {int index = 0}) {
+    final source = _mergePreferNonEmpty(json, [
+      json['vehicle'],
+      json['car'],
+      json['item'],
+      json['result'],
+      json['data'],
+      json['details'],
+      json['title'],
+      json['title_info'],
+      json['titleDetails'],
+    ]);
     final id =
         _pickString(
-          json['id'],
-          json['vin'],
-          json['slug'],
-          json['uuid'],
-          json['stock_number'],
+          source['id'],
+          source['vin'],
+          source['slug'],
+          source['uuid'],
+          source['stock_number'],
         ) ??
         'vehicle-$index';
     final make =
-        _pickString(json['make'], json['brand'], json['manufacturer']) ?? '';
+        _pickString(
+          source['make'],
+          source['brand'],
+          source['manufacturer'],
+        ) ??
+        '';
     final model =
         _pickString(
-          json['model'],
-          json['model_name'],
-          json['trim'],
-          json['series'],
+          source['model'],
+          source['model_name'],
+          source['trim'],
+          source['series'],
         ) ??
         '';
     final year = _pickInt(
-      json['year'],
-      json['model_year'],
-      json['production_year'],
+      source['year'],
+      source['model_year'],
+      source['production_year'],
     );
     final title =
         _pickString(
-          json['title'],
+          source['title'],
           [make, model].where((value) => value.isNotEmpty).join(' '),
           model,
           make,
         ) ??
         'Vehicle ${index + 1}';
 
-    final gallery = _resolveGallery(json);
+    final gallery = _resolveGallery(source);
     final image = gallery.isEmpty ? '' : gallery.first;
     final price =
         _pickNumber(
-          json['price'],
-          json['current_price'],
-          json['sale_price'],
-          json['amount'],
-          json['list_price'],
+          source['price'],
+          source['current_price'],
+          source['sale_price'],
+          source['amount'],
+          source['list_price'],
         ) ??
         0;
     final currency =
-        _pickString(json['currency'], json['currency_code']) ?? 'USD';
+        _pickString(source['currency'], source['currency_code']) ?? 'USD';
     final odometer = _pickInt(
-      json['odometer'],
-      json['mileage'],
-      json['kilometers'],
-      json['kilometres'],
-      json['km'],
-      json['odometer_km'],
+      source['odometer'],
+      source['mileage'],
+      source['kilometers'],
+      source['kilometres'],
+      source['km'],
+      source['odometer_km'],
+      source['odometer_miles'],
     );
     final lotNumber =
         _pickString(
-          json['lot_number'],
-          json['lotNumber'],
-          json['lot'],
-          json['lot_id'],
-          json['lotId'],
-          json['stock_number'],
+          source['lot_number'],
+          source['lotNumber'],
+          source['lot'],
+          source['lot_id'],
+          source['lotId'],
+          source['stock_number'],
+        ) ??
+        '';
+    final vin =
+        _pickString(
+          source['vin'],
+          source['vin_number'],
+          source['vinNumber'],
+          source['vehicle_vin'],
+          source['vehicleVin'],
+        ) ??
+        '';
+    final titleCode =
+        _pickString(
+          source['title_code'],
+          source['titleCode'],
+          source['title_code_desc'],
+          source['title_status'],
+          source['title_type'],
+          source['titleType'],
+        ) ??
+        '';
+    final cylinders =
+        _pickString(
+          source['cylinders'],
+          source['cylinders_count'],
+          source['cylinder_count'],
+          source['engine_cylinders'],
+          source['engineCylinders'],
+        ) ??
+        '';
+    final keys = _pickString(
+          source['keys'],
+          source['keys_status'],
+          source['key_status'],
+          source['keysStatus'],
+        ) ??
+        _pickYesNo(
+          source['has_keys'],
+          source['keys_present'],
+          source['keysPresent'],
         ) ??
         '';
     final primaryDamage =
         _pickString(
-          json['primary_damage'],
-          json['primaryDamage'],
-          json['damage_primary'],
-          json['primary_damage_desc'],
+          source['primary_damage'],
+          source['primaryDamage'],
+          source['damage_primary'],
+          source['primary_damage_desc'],
+          source['primary_damage_type'],
+          source['primaryDamageType'],
         ) ??
         '';
     final secondaryDamage =
         _pickString(
-          json['secondary_damage'],
-          json['secondaryDamage'],
-          json['damage_secondary'],
-          json['secondary_damage_desc'],
+          source['secondary_damage'],
+          source['secondaryDamage'],
+          source['damage_secondary'],
+          source['secondary_damage_desc'],
+          source['secondary_damage_type'],
+          source['secondaryDamageType'],
         ) ??
         '';
     final saleStatus =
         _pickString(
-          json['sale_status'],
-          json['saleStatus'],
-          json['status'],
-          json['auction_status'],
+          source['sale_status'],
+          source['saleStatus'],
+          source['status'],
+          source['auction_status'],
         ) ??
         '';
     final location =
         _pickString(
-          json['location'],
-          _combineLocation(json['city'], json['country']),
-          json['country_name'],
-          json['countryName'],
+          source['location'],
+          _combineLocation(source['city'], source['country']),
+          source['country_name'],
+          source['countryName'],
         ) ??
         '';
     final country =
         _pickString(
-          json['country'],
-          json['country_name'],
-          json['countryName'],
+          source['country'],
+          source['country_name'],
+          source['countryName'],
           _extractCountry(location),
         ) ??
         '';
+
+    _debugLogVehicleFields(
+      'VehicleSummary',
+      json: json,
+      source: source,
+      values: {
+        'vin': vin,
+        'odometer': odometer,
+        'titleCode': titleCode,
+        'primaryDamage': primaryDamage,
+        'secondaryDamage': secondaryDamage,
+        'cylinders': cylinders,
+        'keys': keys,
+      },
+    );
 
     return VehicleSummary(
       id: id,
@@ -766,94 +860,98 @@ class VehicleSummary {
       saleStatus: saleStatus,
       transmission:
           _pickString(
-            json['transmission'],
-            json['transmission_type'],
-            json['gearbox'],
+            source['transmission'],
+            source['transmission_type'],
+            source['gearbox'],
           ) ??
           '',
       fuel:
           _pickString(
-            json['fuel'],
-            json['fuel_type'],
-            json['engine_type'],
-            json['energy_type'],
-            json['powertrain'],
+            source['fuel'],
+            source['fuel_type'],
+            source['engine_type'],
+            source['energy_type'],
+            source['powertrain'],
           ) ??
           '',
       bodyType:
           _pickString(
-            json['bodyType'],
-            json['body_type'],
-            json['body_style'],
+            source['bodyType'],
+            source['body_type'],
+            source['body_style'],
           ) ??
           '',
       batteryRange:
           _pickString(
-            json['batteryRange'],
-            json['battery_range'],
-            json['range_km'],
-            json['range'],
-            json['electric_range'],
+            source['batteryRange'],
+            source['battery_range'],
+            source['range_km'],
+            source['range'],
+            source['electric_range'],
           ) ??
           '',
       acceleration0100:
           _pickString(
-            json['acceleration0100'],
-            json['acceleration_0_100'],
-            json['acceleration-0-100'],
-            json['zero_to_hundred'],
-            json['acceleration'],
+            source['acceleration0100'],
+            source['acceleration_0_100'],
+            source['acceleration-0-100'],
+            source['zero_to_hundred'],
+            source['acceleration'],
           ) ??
           '',
       motorPower:
           _pickString(
-            json['motorPower'],
-            json['motor_power'],
-            json['engine_power'],
-            json['power_kw'],
-            json['horsepower'],
+            source['motorPower'],
+            source['motor_power'],
+            source['engine_power'],
+            source['power_kw'],
+            source['horsepower'],
           ) ??
           '',
       motorPowerUnit:
           _pickString(
-            json['motorPowerUnit'],
-            json['motor_power_unit'],
-            json['engine_power_unit'],
-            json['power_unit'],
+            source['motorPowerUnit'],
+            source['motor_power_unit'],
+            source['engine_power_unit'],
+            source['power_unit'],
           ) ??
           '',
       engineType:
           _pickString(
-            json['engineType'],
-            json['engine_type'],
-            json['motor_type'],
-            json['engineLayout'],
-            json['engine_layout'],
-            json['motor_kind'],
+            source['engineType'],
+            source['engine_type'],
+            source['motor_type'],
+            source['engineLayout'],
+            source['engine_layout'],
+            source['motor_kind'],
           ) ??
           '',
       drive:
           _pickString(
-            json['drive'],
-            json['drive_type'],
-            json['drivetrain'],
-            json['wheel_drive'],
-            json['driveTrain'],
+            source['drive'],
+            source['drive_type'],
+            source['drivetrain'],
+            source['wheel_drive'],
+            source['driveTrain'],
           ) ??
           '',
       color:
           _pickString(
-            json['color'],
-            json['colour'],
-            json['paint_color'],
-            json['paint'],
-            json['exterior_color'],
+            source['color'],
+            source['colour'],
+            source['paint_color'],
+            source['paint'],
+            source['exterior_color'],
           ) ??
           '',
       country: country,
       location: location,
       make: make,
       model: model,
+      vin: vin,
+      titleCode: titleCode,
+      cylinders: cylinders,
+      keys: keys,
     );
   }
 }
@@ -941,19 +1039,30 @@ class VehicleDetails {
     Map<String, dynamic> json, {
     VehicleSummary? fallback,
   }) {
+    final source = _mergePreferNonEmpty(json, [
+      json['vehicle'],
+      json['car'],
+      json['item'],
+      json['result'],
+      json['data'],
+      json['details'],
+      json['title'],
+      json['title_info'],
+      json['titleDetails'],
+    ]);
     final baseImage = fallback?.image ?? '';
-    final gallery = _resolveGallery(json, fallbackImage: baseImage);
+    final gallery = _resolveGallery(source, fallbackImage: baseImage);
     final location =
         _pickString(
-          json['location'],
-          _combineLocation(json['city'], json['country']),
-          json['country'],
+          source['location'],
+          _combineLocation(source['city'], source['country']),
+          source['country'],
           fallback?.location,
         ) ??
         '';
 
     final highlights = <String>[];
-    final features = json['features'];
+    final features = source['features'];
     if (features is List) {
       for (final item in features) {
         final value = _normalizeString(item);
@@ -963,8 +1072,12 @@ class VehicleDetails {
       }
     }
 
+    final descriptionPairs = _extractDescriptionPairs(
+      source['description_pairs'] ?? source['details'],
+    );
+
     final badges = <String>[];
-    final rawBadges = json['labels'];
+    final rawBadges = source['labels'];
     if (rawBadges is List) {
       for (final item in rawBadges) {
         final value = _normalizeString(item);
@@ -974,151 +1087,298 @@ class VehicleDetails {
       }
     }
 
+    _debugLogVehicleFields(
+      'VehicleDetails',
+      json: json,
+      source: source,
+      values: {
+        'vin': _pickString(
+          source['vin'],
+          source['vin_number'],
+          source['vinNumber'],
+          source['vehicle_vin'],
+          source['vehicleVin'],
+          fallback?.vin,
+        ),
+        'odometer': _pickInt(
+          source['odometer'],
+          source['mileage'],
+          source['kilometers'],
+          source['kilometres'],
+          source['km'],
+          source['odometer_km'],
+          source['odometer_miles'],
+          fallback?.odometer,
+        ),
+        'titleCode': _pickString(
+          source['title_code'],
+          source['titleCode'],
+          source['title_code_desc'],
+          source['title_status'],
+          source['title_type'],
+          source['titleType'],
+        ),
+        'primaryDamage': _pickString(
+          source['primary_damage'],
+          source['primaryDamage'],
+          source['damage_primary'],
+          source['primary_damage_desc'],
+          source['primary_damage_type'],
+          source['primaryDamageType'],
+          fallback?.primaryDamage,
+        ),
+        'secondaryDamage': _pickString(
+          source['secondary_damage'],
+          source['secondaryDamage'],
+          source['damage_secondary'],
+          source['secondary_damage_desc'],
+          source['secondary_damage_type'],
+          source['secondaryDamageType'],
+          fallback?.secondaryDamage,
+        ),
+        'cylinders': _pickString(
+          source['cylinders'],
+          source['cylinders_count'],
+          source['cylinder_count'],
+          source['engine_cylinders'],
+          source['engineCylinders'],
+        ),
+        'keys': _pickString(
+          source['keys'],
+          source['keys_status'],
+          source['key_status'],
+          source['keysStatus'],
+        ),
+      },
+    );
+
     return VehicleDetails(
-      id: _pickString(json['id'], json['vin'], fallback?.id) ?? '',
+      id: _pickString(source['id'], source['vin'], fallback?.id) ?? '',
       title:
           _pickString(
-            json['title'],
-            '${_pickString(json['year']) ?? fallback?.year ?? ''} ${_pickString(json['make']) ?? fallback?.make ?? ''} ${_pickString(json['model']) ?? fallback?.model ?? ''}'
+            source['title'],
+            '${_pickString(source['year']) ?? fallback?.year ?? ''} ${_pickString(source['make']) ?? fallback?.make ?? ''} ${_pickString(source['model']) ?? fallback?.model ?? ''}'
                 .trim(),
             fallback?.title,
           ) ??
           'Vehicle',
-      make: _pickString(json['make'], fallback?.make) ?? '',
-      model: _pickString(json['model'], fallback?.model) ?? '',
-      year: _pickInt(json['year'], fallback?.year),
-      price: _pickNumber(json['price'], fallback?.price) ?? 0,
+      make: _pickString(source['make'], fallback?.make) ?? '',
+      model: _pickString(source['model'], fallback?.model) ?? '',
+      year: _pickInt(source['year'], fallback?.year),
+      price: _pickNumber(source['price'], fallback?.price) ?? 0,
       currency:
           _pickString(
-            json['currency_code'],
-            json['currency'],
+            source['currency_code'],
+            source['currency'],
             fallback?.currency,
           ) ??
           'USD',
-      odometer: _pickInt(json['odometer'], fallback?.odometer),
+      odometer: _pickInt(
+        source['odometer'],
+        source['mileage'],
+        source['kilometers'],
+        source['kilometres'],
+        source['km'],
+        source['odometer_km'],
+        source['odometer_miles'],
+        fallback?.odometer,
+      ),
       lotNumber:
           _pickString(
-            json['lot_number'],
-            json['lotNumber'],
-            json['lot'],
-            json['lot_id'],
-            json['lotId'],
+            source['lot_number'],
+            source['lotNumber'],
+            source['lot'],
+            source['lot_id'],
+            source['lotId'],
             fallback?.lotNumber,
           ) ??
           '',
       primaryDamage:
           _pickString(
-            json['primary_damage'],
-            json['primaryDamage'],
-            json['damage_primary'],
-            json['primary_damage_desc'],
+            source['primary_damage'],
+            source['primaryDamage'],
+            source['damage_primary'],
+            source['primary_damage_desc'],
+            source['primary_damage_type'],
+            source['primaryDamageType'],
+            _pairValue(descriptionPairs, const [
+              'primarydamage',
+              'primary_damage',
+              'primarydamagetype',
+              'primary_damage_type',
+              'primarydamagedesc',
+              'primary_damage_desc',
+            ]),
             fallback?.primaryDamage,
           ) ??
           '',
       secondaryDamage:
           _pickString(
-            json['secondary_damage'],
-            json['secondaryDamage'],
-            json['damage_secondary'],
-            json['secondary_damage_desc'],
+            source['secondary_damage'],
+            source['secondaryDamage'],
+            source['damage_secondary'],
+            source['secondary_damage_desc'],
+            source['secondary_damage_type'],
+            source['secondaryDamageType'],
+            _pairValue(descriptionPairs, const [
+              'secondarydamage',
+              'secondary_damage',
+              'secondarydamagetype',
+              'secondary_damage_type',
+              'secondarydamagedesc',
+              'secondary_damage_desc',
+            ]),
             fallback?.secondaryDamage,
           ) ??
           '',
       saleStatus:
           _pickString(
-            json['sale_status'],
-            json['saleStatus'],
-            json['status'],
-            json['auction_status'],
+            source['sale_status'],
+            source['saleStatus'],
+            source['status'],
+            source['auction_status'],
           ) ??
           '',
       saleDate:
           _pickString(
-            json['sale_date'],
-            json['saleDate'],
-            json['auction_date'],
-            json['auctionDate'],
+            source['sale_date'],
+            source['saleDate'],
+            source['auction_date'],
+            source['auctionDate'],
           ) ??
           '',
       timeLeft:
           _pickString(
-            json['time_left'],
-            json['timeLeft'],
-            json['time_remaining'],
+            source['time_left'],
+            source['timeLeft'],
+            source['time_remaining'],
           ) ??
           '',
       currentBid:
           _pickNumber(
-            json['current_bid'],
-            json['currentBid'],
-            json['bid_amount'],
+            source['current_bid'],
+            source['currentBid'],
+            source['bid_amount'],
           ),
       buyNow:
           _pickNumber(
-            json['buy_now'],
-            json['buyNow'],
-            json['buy_now_price'],
+            source['buy_now'],
+            source['buyNow'],
+            source['buy_now_price'],
           ),
       estimatedRetailValue:
           _pickNumber(
-            json['estimated_retail_value'],
-            json['estimatedRetailValue'],
+            source['estimated_retail_value'],
+            source['estimatedRetailValue'],
           ),
       lastUpdated:
           _pickString(
-            json['last_updated'],
-            json['lastUpdated'],
-            json['updated_at'],
+            source['last_updated'],
+            source['lastUpdated'],
+            source['updated_at'],
           ) ??
           '',
       titleCode:
           _pickString(
-            json['title_code'],
-            json['titleCode'],
+            source['title_code'],
+            source['titleCode'],
+            source['title_code_desc'],
+            source['title_status'],
+            source['title_type'],
+            source['titleType'],
+            _pairValue(descriptionPairs, const [
+              'titlecode',
+              'title_code',
+              'titlestatus',
+              'title_status',
+              'titletype',
+              'title_type',
+            ]),
           ) ??
           '',
       cylinders:
           _pickString(
-            json['cylinders'],
-            json['cylinders_count'],
+            source['cylinders'],
+            source['cylinders_count'],
+            source['cylinder_count'],
+            source['engine_cylinders'],
+            source['engineCylinders'],
+            _pairValue(descriptionPairs, const [
+              'cylinders',
+              'cylinderscount',
+              'cylindercount',
+              'enginecylinders',
+            ]),
           ) ??
           '',
       keys:
           _pickString(
-            json['keys'],
-            json['keys_status'],
+            source['keys'],
+            source['keys_status'],
+            source['key_status'],
+            source['keysStatus'],
+            _pairValue(descriptionPairs, const [
+              'keys',
+              'keysstatus',
+              'key_status',
+              'keystatus',
+            ]),
           ) ??
+          _pickYesNo(
+            source['has_keys'],
+            source['keys_present'],
+            source['keysPresent'],
+          ) ??
+          _pairValue(descriptionPairs, const [
+            'haskeys',
+            'keys_present',
+            'keyspresent',
+          ]) ??
           '',
       transmission:
-          _pickString(json['transmission'], fallback?.transmission) ?? '',
-      fuel: _pickString(json['fuel'], fallback?.fuel) ?? '',
+          _pickString(source['transmission'], fallback?.transmission) ?? '',
+      fuel: _pickString(source['fuel'], fallback?.fuel) ?? '',
       bodyType:
           _pickString(
-            json['body_style'],
-            json['bodyType'],
+            source['body_style'],
+            source['bodyType'],
             fallback?.bodyType,
           ) ??
           '',
-      color: _pickString(json['color'], fallback?.color) ?? '',
+      color: _pickString(source['color'], fallback?.color) ?? '',
       drive:
-          _pickString(json['drive'], json['drive_type'], fallback?.drive) ?? '',
-      engineType: _pickString(json['engine_type'], fallback?.engineType) ?? '',
+          _pickString(
+            source['drive'],
+            source['drive_type'],
+            fallback?.drive,
+          ) ??
+          '',
+      engineType: _pickString(source['engine_type'], fallback?.engineType) ?? '',
       engine:
           _pickString(
-            json['engine'],
-            json['engine_description'],
-            json['engine_type'],
+            source['engine'],
+            source['engine_description'],
+            source['engine_type'],
             fallback?.engineType,
           ) ??
           '',
-      country: _pickString(json['country'], fallback?.country) ?? '',
-      condition: _pickString(json['status'], json['condition']) ?? '',
-      vin: _pickString(json['vin']) ?? '',
+      country: _pickString(source['country'], fallback?.country) ?? '',
+      condition: _pickString(source['status'], source['condition']) ?? '',
+      vin:
+          _pickString(
+            source['vin'],
+            source['vin_number'],
+            source['vinNumber'],
+            source['vehicle_vin'],
+            source['vehicleVin'],
+            fallback?.vin,
+          ) ??
+          '',
       location: location,
       image: gallery.isEmpty ? baseImage : gallery.first,
       gallery: gallery,
       highlights: highlights,
-      description: _pickString(json['description']) ?? '',
+      description: _pickString(source['description']) ?? '',
       badges: badges,
     );
   }
@@ -1269,7 +1529,183 @@ String? _normalizeString(dynamic value) {
   if (value is num) {
     return value.toString();
   }
+  if (value is Map) {
+    return _pickString(
+      value['value'],
+      value['label'],
+      value['name'],
+      value['title'],
+      value['code'],
+      value['description'],
+      value['desc'],
+      value['display_name'],
+      value['displayName'],
+    );
+  }
   return null;
+}
+
+void _debugLogVehicleFields(
+  String label, {
+  required Map<String, dynamic> json,
+  required Map<String, dynamic> source,
+  required Map<String, Object?> values,
+}) {
+  if (!kDebugMode) {
+    return;
+  }
+  final missing = values.entries
+      .where((entry) => !_hasValue(entry.value))
+      .map((entry) => entry.key)
+      .toList();
+  if (missing.isEmpty) {
+    return;
+  }
+  debugPrint('$label missing fields: ${missing.join(', ')}');
+  debugPrint(
+    '$label source keys: ${source.keys.take(40).join(', ')}',
+  );
+  debugPrint(
+    '$label raw keys: ${json.keys.take(40).join(', ')}',
+  );
+}
+
+bool _hasValue(dynamic value) {
+  if (value == null) {
+    return false;
+  }
+  if (value is String) {
+    return value.trim().isNotEmpty;
+  }
+  if (value is Map) {
+    return value.isNotEmpty;
+  }
+  if (value is Iterable) {
+    return value.isNotEmpty;
+  }
+  return true;
+}
+
+Map<String, dynamic> _mergePreferNonEmpty(
+  Map<String, dynamic> base,
+  List<dynamic> candidates,
+) {
+  final merged = Map<String, dynamic>.from(base);
+  for (final candidate in candidates) {
+    if (candidate is! Map) {
+      continue;
+    }
+    candidate.forEach((key, value) {
+      if (!_hasValue(merged[key]) && _hasValue(value)) {
+        merged[key.toString()] = value;
+      }
+    });
+  }
+  return merged;
+}
+
+String? _pickYesNo([
+  dynamic value1,
+  dynamic value2,
+  dynamic value3,
+]) {
+  final values = [value1, value2, value3];
+  for (final value in values) {
+    if (value is bool) {
+      return value ? 'Yes' : 'No';
+    }
+    if (value is num) {
+      if (value == 0) {
+        return 'No';
+      }
+      return 'Yes';
+    }
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized.isEmpty) {
+        continue;
+      }
+      if (normalized == 'yes' ||
+          normalized == 'y' ||
+          normalized == 'true' ||
+          normalized == '1') {
+        return 'Yes';
+      }
+      if (normalized == 'no' ||
+          normalized == 'n' ||
+          normalized == 'false' ||
+          normalized == '0') {
+        return 'No';
+      }
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+Map<String, String> _extractDescriptionPairs(dynamic raw) {
+  final result = <String, String>{};
+  if (raw is List) {
+    for (final item in raw) {
+      if (item is! Map) {
+        continue;
+      }
+      final key = _pickString(
+        item['label'],
+        item['name'],
+        item['key'],
+        item['title'],
+      );
+      final value = _pickString(
+        item['value'],
+        item['text'],
+        item['description'],
+        item['data'],
+        item['content'],
+      );
+      if (key == null || value == null) {
+        continue;
+      }
+      result[_normalizePairKey(key)] = value;
+    }
+    return result;
+  }
+  if (raw is Map) {
+    raw.forEach((key, value) {
+      final normalizedKey = _normalizePairKey(key.toString());
+      final normalizedValue = _normalizeString(value);
+      if (normalizedValue != null) {
+        result[normalizedKey] = normalizedValue;
+      }
+    });
+  }
+  return result;
+}
+
+String? _pairValue(Map<String, String> pairs, List<String> keys) {
+  for (final key in keys) {
+    final normalizedKey = _normalizePairKey(key);
+    final value = pairs[normalizedKey];
+    if (value != null && value.trim().isNotEmpty) {
+      return value;
+    }
+  }
+  return null;
+}
+
+String _normalizePairKey(String key) {
+  final buffer = StringBuffer();
+  for (final rune in key.runes) {
+    final char = String.fromCharCode(rune);
+    final lower = char.toLowerCase();
+    final isAlphaNum =
+        (lower.codeUnitAt(0) >= 97 && lower.codeUnitAt(0) <= 122) ||
+        (lower.codeUnitAt(0) >= 48 && lower.codeUnitAt(0) <= 57);
+    if (isAlphaNum) {
+      buffer.write(lower);
+    }
+  }
+  return buffer.toString();
 }
 
 num? _pickNumber([

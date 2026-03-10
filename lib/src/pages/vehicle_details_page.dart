@@ -646,19 +646,22 @@ class _AzerbaijanDetailsContentState extends State<_AzerbaijanDetailsContent> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              gallery.length,
-              (index) => Container(
-                width: 6,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: index == _activeIndex
-                      ? const Color(0xFFDF3040)
-                      : const Color(0xFFD1D5DB),
-                  borderRadius: BorderRadius.circular(6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                gallery.length,
+                (index) => Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: index == _activeIndex
+                        ? const Color(0xFFDF3040)
+                        : const Color(0xFFD1D5DB),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
               ),
             ),
