@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import '../repositories/auto_trader_repository.dart';
 import 'customs_calculator_page.dart';
@@ -226,6 +227,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   bool _auction = true;
   bool _other = false;
   String _queryText = '';
+  bool _isLoading = false;
+  List<_SearchSuggestion> _results = const [];
+  Timer? _suggestionTimer;
 
   @override
   void initState() {
@@ -235,6 +239,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
 
   @override
   void dispose() {
+    _suggestionTimer?.cancel();
     _queryController.removeListener(_handleQueryChanged);
     _queryController.dispose();
     super.dispose();
@@ -247,33 +252,48 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     }
     setState(() {
       _queryText = next;
+      _isLoading = next.trim().isNotEmpty;
+      _results = const [];
     });
-  }
 
-  List<_SearchSuggestion> _suggestions() {
-    if (_queryText.trim().isEmpty) {
-      return const [];
+    _suggestionTimer?.cancel();
+    if (next.trim().isEmpty) {
+      return;
     }
-    return const [
-      _SearchSuggestion(
-        title: '1HD1KH711RB634834',
-        subtitle: '2024 HARLEY-DAVIDSON\nFL',
-      ),
-      _SearchSuggestion(
-        title: 'Lot 66498035',
-        subtitle: '2024 HARLEY-DAVIDSON\nFL',
-      ),
-      _SearchSuggestion(
-        title: 'HARLEY-DAVIDSON',
-        subtitle: 'FL',
-      ),
-    ];
+    _suggestionTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) {
+        return;
+      }
+      final normalized = next.trim().toLowerCase();
+      final hasMatch = normalized.contains('harley') ||
+          normalized.contains('1hd') ||
+          normalized.contains('lot');
+      setState(() {
+        _isLoading = false;
+        _results = hasMatch
+            ? const [
+                _SearchSuggestion(
+                  title: '1HD1KH711RB634834',
+                  subtitle: '2024 HARLEY-DAVIDSON\nFL',
+                ),
+                _SearchSuggestion(
+                  title: 'Lot 66498035',
+                  subtitle: '2024 HARLEY-DAVIDSON\nFL',
+                ),
+                _SearchSuggestion(
+                  title: 'HARLEY-DAVIDSON',
+                  subtitle: 'FL',
+                ),
+              ]
+            : const [];
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final hasQuery = _queryText.trim().isNotEmpty;
-    final suggestions = _suggestions();
+    final suggestions = _results;
 
     return SafeArea(
       child: Material(
@@ -332,59 +352,95 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: suggestions
-                              .map(
-                                (item) => InkWell(
-                                  onTap: () {
-                                    _queryController.text = item.title;
-                                    _queryController.selection =
-                                        TextSelection.collapsed(
-                                      offset: item.title.length,
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      10,
-                                      12,
-                                      10,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.title,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color: const Color(0xFF111827),
-                                              ),
-                                        ),
-                                        if (item.subtitle.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            item.subtitle,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color:
-                                                      const Color(0xFF6B7280),
-                                                ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
+                        child: _isLoading
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Text(
+                                  'Loading suggestions...',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: const Color(0xFF6B7280),
+                                      ),
                                 ),
                               )
-                              .toList(),
-                        ),
+                            : suggestions.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Text(
+                                  'No results found',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: const Color(0xFF6B7280),
+                                      ),
+                                ),
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: suggestions
+                                    .map(
+                                      (item) => InkWell(
+                                        onTap: () {
+                                          _queryController.text = item.title;
+                                          _queryController.selection =
+                                              TextSelection.collapsed(
+                                            offset: item.title.length,
+                                          );
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            12,
+                                            10,
+                                            12,
+                                            10,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.title,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: const Color(
+                                                        0xFF111827,
+                                                      ),
+                                                    ),
+                                              ),
+                                              if (item.subtitle.isNotEmpty) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  item.subtitle,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: const Color(
+                                                          0xFF6B7280,
+                                                        ),
+                                                      ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
                       ),
                     ),
                   ],
