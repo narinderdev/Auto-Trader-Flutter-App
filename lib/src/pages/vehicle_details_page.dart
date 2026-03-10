@@ -1158,6 +1158,9 @@ class _InlineCalculatorCardState extends State<_InlineCalculatorCard> {
                 minimumSize: const Size.fromHeight(44),
                 backgroundColor: const Color(0xFFD21D39),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
               child: const Text('Calculate'),
             ),
@@ -1166,6 +1169,9 @@ class _InlineCalculatorCardState extends State<_InlineCalculatorCard> {
               onPressed: _clear,
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
               child: const Text('Clear'),
             ),
@@ -1195,6 +1201,9 @@ class _InlineCalculatorCardState extends State<_InlineCalculatorCard> {
                 minimumSize: const Size.fromHeight(44),
                 backgroundColor: const Color(0xFFD21D39),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
               child: const Text('Call'),
             ),
@@ -1205,6 +1214,9 @@ class _InlineCalculatorCardState extends State<_InlineCalculatorCard> {
                 minimumSize: const Size.fromHeight(44),
                 backgroundColor: const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
               child: const Text('Write us'),
             ),
