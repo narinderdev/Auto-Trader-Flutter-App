@@ -329,8 +329,11 @@ class _HomeViewState extends State<_HomeView> {
   void _openDetails(BuildContext context, VehicleSummary vehicle) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            VehicleDetailsPage(vehicleId: vehicle.id, initialVehicle: vehicle),
+        builder: (_) => VehicleDetailsPage(
+          vehicleId: vehicle.id,
+          initialVehicle: vehicle,
+          embedded: true,
+        ),
       ),
     );
   }
@@ -402,14 +405,23 @@ class _HeroBanner extends StatefulWidget {
 class _HeroBannerState extends State<_HeroBanner> {
   static const _slides = [
     _HeroSlide(
+      title: 'Choose from thousands of\nvehicles',
+      subtitle:
+          'Access a large selection of vehicles sourced from\nU.S. auctions, updated daily in one place.',
       leftAsset: 'assets/brands/1.webp',
       rightAsset: 'assets/brands/2.webp',
     ),
     _HeroSlide(
+      title: 'See the price instantly, no phone\ncalls',
+      subtitle:
+          'Use the calculator to instantly calculate and\ncompare all costs up to delivery in Azerbaijan.',
       leftAsset: 'assets/brands/3.webp',
       rightAsset: 'assets/brands/4.webp',
     ),
     _HeroSlide(
+      title: 'Safe shipping from the USA to\nAzerbaijan',
+      subtitle:
+          'Affordable shipping rates, insured delivery, and\noptional protective packaging services.',
       leftAsset: 'assets/brands/5.webp',
       rightAsset: 'assets/brands/6.webp',
     ),
@@ -417,17 +429,19 @@ class _HeroBannerState extends State<_HeroBanner> {
 
   late final PageController _pageController;
   int _currentPage = 0;
+  int _pageIndex = 0;
   Timer? _autoScrollTimer;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageIndex = _slides.length * 100;
+    _pageController = PageController(initialPage: _pageIndex);
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!_pageController.hasClients) {
         return;
       }
-      final nextPage = (_currentPage + 1) % _slides.length;
+      final nextPage = _pageIndex + 1;
       _pageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 350),
@@ -447,113 +461,112 @@ class _HeroBannerState extends State<_HeroBanner> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(5),
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFD21D39),
-        padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
-        child: Stack(
-          children: [
-            Positioned(
-              left: -70,
-              top: -40,
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.12),
-                ),
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFD21D39),
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+      child: Stack(
+        children: [
+          Positioned(
+            left: -70,
+            top: -40,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.12),
               ),
             ),
-            Positioned(
-              right: -50,
-              top: 20,
-              child: Container(
-                width: 240,
-                height: 240,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
+          ),
+          Positioned(
+            right: -50,
+            top: 20,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
-            Column(
-              children: [
-                Text(
-                  'Order your car from the USA to Azerbaijan',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                  ),
+          ),
+          Column(
+            children: [
+              Text(
+                _slides[_currentPage].title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  height: 1.2,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Choose from over 181 745 used Cars, Trucks and SUVs',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    fontWeight: FontWeight.w500,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _slides[_currentPage].subtitle,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
                 ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  height: 170,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _slides.length,
-                    onPageChanged: (page) {
-                      setState(() {
-                        _currentPage = page;
-                      });
-                    },
-                    itemBuilder: (context, index) {
-                      final slide = _slides[index];
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Image.asset(
-                              slide.leftAsset,
-                              fit: BoxFit.contain,
-                            ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                height: 170,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (page) {
+                    setState(() {
+                      _pageIndex = page;
+                      _currentPage = page % _slides.length;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final slide = _slides[index % _slides.length];
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Image.asset(
+                            slide.leftAsset,
+                            fit: BoxFit.contain,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Image.asset(
-                              slide.rightAsset,
-                              fit: BoxFit.contain,
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Image.asset(
+                            slide.rightAsset,
+                            fit: BoxFit.contain,
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    _slides.length,
-                    (index) => Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: index == _currentPage
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.5),
-                      ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _slides.length,
+                  (index) => Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: index == _currentPage
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -561,10 +574,14 @@ class _HeroBannerState extends State<_HeroBanner> {
 
 class _HeroSlide {
   const _HeroSlide({
+    required this.title,
+    required this.subtitle,
     required this.leftAsset,
     required this.rightAsset,
   });
 
+  final String title;
+  final String subtitle;
   final String leftAsset;
   final String rightAsset;
 }

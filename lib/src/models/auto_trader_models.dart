@@ -535,6 +535,64 @@ class VehicleSummary {
   final String make;
   final String model;
 
+  VehicleSummary copyWith({
+    String? id,
+    String? title,
+    String? image,
+    List<String>? gallery,
+    num? price,
+    String? currency,
+    int? year,
+    int? odometer,
+    String? lotNumber,
+    String? primaryDamage,
+    String? secondaryDamage,
+    String? saleStatus,
+    String? transmission,
+    String? fuel,
+    String? bodyType,
+    String? batteryRange,
+    String? acceleration0100,
+    String? motorPower,
+    String? motorPowerUnit,
+    String? engineType,
+    String? drive,
+    String? color,
+    String? country,
+    String? location,
+    String? make,
+    String? model,
+  }) {
+    return VehicleSummary(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      image: image ?? this.image,
+      gallery: gallery ?? this.gallery,
+      price: price ?? this.price,
+      currency: currency ?? this.currency,
+      year: year ?? this.year,
+      odometer: odometer ?? this.odometer,
+      lotNumber: lotNumber ?? this.lotNumber,
+      primaryDamage: primaryDamage ?? this.primaryDamage,
+      secondaryDamage: secondaryDamage ?? this.secondaryDamage,
+      saleStatus: saleStatus ?? this.saleStatus,
+      transmission: transmission ?? this.transmission,
+      fuel: fuel ?? this.fuel,
+      bodyType: bodyType ?? this.bodyType,
+      batteryRange: batteryRange ?? this.batteryRange,
+      acceleration0100: acceleration0100 ?? this.acceleration0100,
+      motorPower: motorPower ?? this.motorPower,
+      motorPowerUnit: motorPowerUnit ?? this.motorPowerUnit,
+      engineType: engineType ?? this.engineType,
+      drive: drive ?? this.drive,
+      color: color ?? this.color,
+      country: country ?? this.country,
+      location: location ?? this.location,
+      make: make ?? this.make,
+      model: model ?? this.model,
+    );
+  }
+
   factory VehicleSummary.fromJson(Map<String, dynamic> json, {int index = 0}) {
     final id =
         _pickString(

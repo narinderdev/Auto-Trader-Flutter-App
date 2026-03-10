@@ -24,7 +24,7 @@ class _AppShellPageState extends State<AppShellPage> {
   int _currentIndex = 0;
 
   late final List<Widget> _tabs = [
-    HomePage(showScaffold: false, initialData: widget.initialHomeData),
+    _HomeTabNavigator(initialHomeData: widget.initialHomeData),
     const _CalculatorTabNavigator(),
     const _SearchTabNavigator(),
     const NotificationsPage(embedded: true),
@@ -103,6 +103,27 @@ class _CalculatorTabNavigator extends StatelessWidget {
       onGenerateRoute: (settings) {
         return MaterialPageRoute<void>(
           builder: (_) => const CustomsCalculatorPage(embedded: true),
+          settings: settings,
+        );
+      },
+    );
+  }
+}
+
+class _HomeTabNavigator extends StatelessWidget {
+  const _HomeTabNavigator({required this.initialHomeData});
+
+  final HomeBootstrapData? initialHomeData;
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (settings) {
+        return MaterialPageRoute<void>(
+          builder: (_) => HomePage(
+            showScaffold: false,
+            initialData: initialHomeData,
+          ),
           settings: settings,
         );
       },
@@ -213,12 +234,13 @@ class _AppHeaderState extends State<_AppHeader> {
     final selected = await showMenu<String>(
       context: context,
       position: position,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      constraints: const BoxConstraints(minWidth: 0),
       items: [
         PopupMenuItem(
           value: 'AZ',
           padding: EdgeInsets.zero,
-          height: 36,
+          height: 32,
           child: _LanguageMenuItem(
             label: 'AZ',
             isSelected: _language == 'AZ',
@@ -227,7 +249,7 @@ class _AppHeaderState extends State<_AppHeader> {
         PopupMenuItem(
           value: 'EN',
           padding: EdgeInsets.zero,
-          height: 36,
+          height: 32,
           child: _LanguageMenuItem(
             label: 'EN',
             isSelected: _language == 'EN',
@@ -666,8 +688,8 @@ class _LanguageMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
         borderRadius: BorderRadius.circular(5),

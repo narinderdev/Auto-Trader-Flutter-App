@@ -45,6 +45,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
   late final PageController _pageController;
   Timer? _timer;
   int _currentImageIndex = 0;
+  int _pageIndex = 0;
 
   List<String> get _images {
     final gallery = widget.vehicle.gallery;
@@ -63,7 +64,9 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    final initialLength = _images.length;
+    _pageIndex = initialLength == 0 ? 0 : initialLength * 100;
+    _pageController = PageController(initialPage: _pageIndex);
     _configureTimer();
   }
 
@@ -75,8 +78,10 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
         oldWidget.autoPlayGallery != widget.autoPlayGallery ||
         oldWidget.enableImageCarousel != widget.enableImageCarousel) {
       _currentImageIndex = 0;
+      final resetLength = _images.length;
+      _pageIndex = resetLength == 0 ? 0 : resetLength * 100;
       if (_pageController.hasClients) {
-        _pageController.jumpToPage(0);
+        _pageController.jumpToPage(_pageIndex);
       }
       _configureTimer();
     }
@@ -98,7 +103,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
       if (!mounted) {
         return;
       }
-      _goToPage((_currentImageIndex + 1) % _images.length);
+      _goToPage(_pageIndex + 1);
     });
   }
 
@@ -117,8 +122,10 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
     if (!_canSlide) {
       return;
     }
-    final nextIndex =
-        (_currentImageIndex - 1 + _images.length) % _images.length;
+    final nextIndex = _pageIndex - 1;
+    if (nextIndex < 0) {
+      return;
+    }
     _goToPage(nextIndex);
   }
 
@@ -126,8 +133,7 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
     if (!_canSlide) {
       return;
     }
-    final nextIndex = (_currentImageIndex + 1) % _images.length;
-    _goToPage(nextIndex);
+    _goToPage(_pageIndex + 1);
   }
 
   @override
@@ -170,7 +176,9 @@ class _VehicleCardTileState extends State<VehicleCardTile> {
                   currentIndex: _currentImageIndex,
                   onPageChanged: (index) {
                     setState(() {
-                      _currentImageIndex = index;
+                      _pageIndex = index;
+                      _currentImageIndex =
+                          _images.isEmpty ? 0 : index % _images.length;
                     });
                   },
                   isWishlisted: widget.isWishlisted,
@@ -371,10 +379,9 @@ class _VehicleImageCarousel extends StatelessWidget {
             else
               PageView.builder(
                 controller: pageController,
-                itemCount: images.length,
                 onPageChanged: onPageChanged,
                 itemBuilder: (context, index) {
-                  final imageUrl = images[index];
+                  final imageUrl = images[index % images.length];
                   return DecoratedBox(
                     decoration: const BoxDecoration(color: Color(0xFFE7E1D8)),
                     child: Image.network(

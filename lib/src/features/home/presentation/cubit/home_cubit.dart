@@ -32,6 +32,23 @@ class HomeCubit extends Cubit<HomeState> {
         state.filterMetadata != FilterMetadata.empty &&
         state.azerbaijanFeatured.isNotEmpty &&
         state.electricFeatured.isNotEmpty) {
+      final needsGallery =
+          state.electricFeatured.any((vehicle) => vehicle.gallery.length <= 1) ||
+          state.azerbaijanFeatured.any(
+            (vehicle) => vehicle.gallery.length <= 1,
+          );
+      if (needsGallery) {
+        final enrichedElectric =
+            await _enrichFeaturedGallery(state.electricFeatured);
+        final enrichedAzerbaijan =
+            await _enrichFeaturedGallery(state.azerbaijanFeatured);
+        emit(
+          state.copyWith(
+            electricFeatured: enrichedElectric,
+            azerbaijanFeatured: enrichedAzerbaijan,
+          ),
+        );
+      }
       return;
     }
 
@@ -57,6 +74,10 @@ class HomeCubit extends Cubit<HomeState> {
       );
 
       final filters = results.filterMetadata;
+      final enrichedElectric =
+          await _enrichFeaturedGallery(results.electricFeatured);
+      final enrichedAzerbaijan =
+          await _enrichFeaturedGallery(results.azerbaijanFeatured);
       emit(
         state.copyWith(
           isLoading: false,
@@ -64,8 +85,8 @@ class HomeCubit extends Cubit<HomeState> {
           homepageVehicles: results.homepageVehicles,
           filterMetadata: filters,
           scopedFilterMetadata: filters,
-          azerbaijanFeatured: results.azerbaijanFeatured,
-          electricFeatured: results.electricFeatured,
+          azerbaijanFeatured: enrichedAzerbaijan,
+          electricFeatured: enrichedElectric,
         ),
       );
     } catch (error) {
@@ -117,6 +138,35 @@ class HomeCubit extends Cubit<HomeState> {
         scopedFilterMetadata: state.filterMetadata,
       ),
     );
+  }
+
+  Future<List<VehicleSummary>> _enrichFeaturedGallery(
+    List<VehicleSummary> vehicles,
+  ) async {
+    if (vehicles.isEmpty) {
+      return vehicles;
+    }
+
+    final futures = vehicles.map((vehicle) async {
+      if (vehicle.gallery.length > 1) {
+        return vehicle;
+      }
+      try {
+        final details = await _repository.fetchVehicleDetails(
+          vehicle.id,
+          fallback: vehicle,
+        );
+        if (details.gallery.length > 1) {
+          return vehicle.copyWith(
+            gallery: details.gallery,
+            image: details.gallery.first,
+          );
+        }
+      } catch (_) {}
+      return vehicle;
+    }).toList();
+
+    return Future.wait(futures);
   }
 
   Future<VehicleSearchFilters?> submitQuickSearch() async {
