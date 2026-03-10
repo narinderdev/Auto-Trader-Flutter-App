@@ -75,96 +75,124 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
         engineCapacityInvalid ||
         issueDateInvalid;
 
-    final content = ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        const CalculatorBreadcrumb(),
-        const SizedBox(height: 18),
-        CalculatorTabs(
-          isAuctionSelected: false,
-          onSelectCustoms: () {},
-          onSelectAuction: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute<void>(
-                builder: (_) => AuctionCalculatorPage(
-                  embedded: widget.embedded,
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(5);
+    final inputTheme = theme.inputDecorationTheme.copyWith(
+      border: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFB4232F), width: 1.3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C), width: 1.3),
+      ),
+    );
+
+    final content = Theme(
+      data: theme.copyWith(inputDecorationTheme: inputTheme),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        children: [
+          const CalculatorBreadcrumb(),
+          const SizedBox(height: 18),
+          CalculatorTabs(
+            isAuctionSelected: false,
+            onSelectCustoms: () {},
+            onSelectAuction: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => AuctionCalculatorPage(
+                    embedded: widget.embedded,
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final form = _CustomsVehicleForm(
-              vehicleType: _vehicleType,
-              engineType: _engineType,
-              originCountry: _originCountry,
-              invoiceValueController: _invoiceValueController,
-              transportationCostsController: _transportationCostsController,
-              otherExpensesController: _otherExpensesController,
-              engineCapacityController: _engineCapacityController,
-              issueDate: _issueDate,
-              showErrors: _showErrors,
-              engineTypeInvalid: engineTypeInvalid,
-              invoiceInvalid: invoiceInvalid,
-              transportationInvalid: transportationInvalid,
-              otherInvalid: otherInvalid,
-              engineCapacityInvalid: engineCapacityInvalid,
-              issueDateInvalid: issueDateInvalid,
-              showRequiredMessage: _showErrors && hasErrors,
-              onVehicleTypeChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _vehicleType = value;
-                });
-              },
-              onEngineTypeChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _engineType = value;
-                });
-              },
-              onOriginCountryChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _originCountry = value;
-                });
-              },
-              onIssueDateTap: _pickIssueDate,
-              onCalculate: _calculate,
-              onClear: _clear,
-            );
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final form = _CustomsVehicleForm(
+                vehicleType: _vehicleType,
+                engineType: _engineType,
+                originCountry: _originCountry,
+                invoiceValueController: _invoiceValueController,
+                transportationCostsController: _transportationCostsController,
+                otherExpensesController: _otherExpensesController,
+                engineCapacityController: _engineCapacityController,
+                issueDate: _issueDate,
+                showErrors: _showErrors,
+                engineTypeInvalid: engineTypeInvalid,
+                invoiceInvalid: invoiceInvalid,
+                transportationInvalid: transportationInvalid,
+                otherInvalid: otherInvalid,
+                engineCapacityInvalid: engineCapacityInvalid,
+                issueDateInvalid: issueDateInvalid,
+                showRequiredMessage: _showErrors && hasErrors,
+                onVehicleTypeChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _vehicleType = value;
+                  });
+                },
+                onEngineTypeChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _engineType = value;
+                  });
+                },
+                onOriginCountryChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _originCountry = value;
+                  });
+                },
+                onIssueDateTap: _pickIssueDate,
+                onCalculate: _calculate,
+                onClear: _clear,
+              );
 
-            final result = _CustomsResultCard(items: _resultItems);
+              final result = _CustomsResultCard(items: _resultItems);
 
-            if (constraints.maxWidth < 900) {
-              return Column(
+              if (constraints.maxWidth < 900) {
+                return Column(
+                  children: [
+                    form,
+                    const SizedBox(height: 16),
+                    result,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  form,
-                  const SizedBox(height: 16),
-                  result,
+                  Expanded(child: form),
+                  const SizedBox(width: 22),
+                  Expanded(child: result),
                 ],
               );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: form),
-                const SizedBox(width: 22),
-                Expanded(child: result),
-              ],
-            );
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     );
 
     if (widget.embedded) {
@@ -347,7 +375,7 @@ class _CustomsVehicleForm extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFDDE3EE)),
       ),
       child: Column(
@@ -449,7 +477,7 @@ class _CustomsVehicleForm extends StatelessWidget {
                   foregroundColor: Colors.white,
                   minimumSize: const Size(88, 48),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                 ),
                 child: const Text('Calculate'),
@@ -461,7 +489,7 @@ class _CustomsVehicleForm extends StatelessWidget {
                   foregroundColor: const Color(0xFF353B48),
                   minimumSize: const Size(74, 48),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(5),
                   ),
                 ),
                 child: const Text('Clear'),
@@ -564,7 +592,7 @@ class _CustomsResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFDDE3EE)),
       ),
       child: Column(
@@ -610,7 +638,7 @@ class _CustomsResultCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               color: const Color(0xFFDDEDDD),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(5),
             ),
             child: Row(
               children: [

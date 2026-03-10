@@ -51,94 +51,122 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
     final bidMissing = bidValue == null || bidValue <= 0;
     final hasErrors = locationMissing || bidMissing;
 
-    final content = ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        const CalculatorBreadcrumb(),
-        const SizedBox(height: 18),
-        CalculatorTabs(
-          isAuctionSelected: true,
-          onSelectCustoms: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute<void>(
-                builder: (_) => CustomsCalculatorPage(
-                  embedded: widget.embedded,
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(5);
+    final inputTheme = theme.inputDecorationTheme.copyWith(
+      border: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD8D3CC)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFB4232F), width: 1.3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: const BorderSide(color: Color(0xFFD91C3C), width: 1.3),
+      ),
+    );
+
+    final content = Theme(
+      data: theme.copyWith(inputDecorationTheme: inputTheme),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        children: [
+          const CalculatorBreadcrumb(),
+          const SizedBox(height: 18),
+          CalculatorTabs(
+            isAuctionSelected: true,
+            onSelectCustoms: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => CustomsCalculatorPage(
+                    embedded: widget.embedded,
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final form = _AuctionCalculatorForm(
-              auctionCompany: _auctionCompany,
-              vehicleType: _vehicleType,
-              destination: _destination,
-              lotNumberController: _lotNumberController,
-              locationController: _locationController,
-              bidAmountController: _bidAmountController,
-              showErrors: _showErrors,
-              locationInvalid: locationMissing,
-              bidInvalid: bidMissing,
-              showRequiredMessage: _showErrors && hasErrors,
-              onAuctionCompanyChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _auctionCompany = value;
-                });
-              },
-              onVehicleTypeChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _vehicleType = value;
-                });
-              },
-              onDestinationChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _destination = value;
-                });
-              },
-              onCalculate: _calculate,
-              onClear: _clear,
-            );
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final form = _AuctionCalculatorForm(
+                auctionCompany: _auctionCompany,
+                vehicleType: _vehicleType,
+                destination: _destination,
+                lotNumberController: _lotNumberController,
+                locationController: _locationController,
+                bidAmountController: _bidAmountController,
+                showErrors: _showErrors,
+                locationInvalid: locationMissing,
+                bidInvalid: bidMissing,
+                showRequiredMessage: _showErrors && hasErrors,
+                onAuctionCompanyChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _auctionCompany = value;
+                  });
+                },
+                onVehicleTypeChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _vehicleType = value;
+                  });
+                },
+                onDestinationChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _destination = value;
+                  });
+                },
+                onCalculate: _calculate,
+                onClear: _clear,
+              );
 
-            final result = _AuctionResultCard(
-              bid: _bid,
-              auctionFee: _auctionFee,
-              shippingFee: _shippingFee,
-              deliveryCost: _deliveryCost,
-              finalPrice: _finalPrice,
-            );
+              final result = _AuctionResultCard(
+                bid: _bid,
+                auctionFee: _auctionFee,
+                shippingFee: _shippingFee,
+                deliveryCost: _deliveryCost,
+                finalPrice: _finalPrice,
+              );
 
-            if (constraints.maxWidth < 900) {
-              return Column(
+              if (constraints.maxWidth < 900) {
+                return Column(
+                  children: [
+                    form,
+                    const SizedBox(height: 16),
+                    result,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  form,
-                  const SizedBox(height: 16),
-                  result,
+                  Expanded(child: form),
+                  const SizedBox(width: 22),
+                  Expanded(child: result),
                 ],
               );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: form),
-                const SizedBox(width: 22),
-                Expanded(child: result),
-              ],
-            );
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     );
 
     if (widget.embedded) {
@@ -301,13 +329,13 @@ class CalculatorTab extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(5),
       child: Container(
         height: 42,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(color: borderColor),
         ),
         child: Center(
@@ -367,7 +395,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFDDE3EE)),
       ),
       child: Column(
@@ -452,7 +480,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
                   child: const Text('Calculate'),
@@ -466,7 +494,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
                     foregroundColor: const Color(0xFF353B48),
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
                   child: const Text('Clear'),
@@ -511,7 +539,7 @@ class _AuctionResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFDDE3EE)),
       ),
       child: Column(
@@ -544,7 +572,7 @@ class _AuctionResultCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               color: const Color(0xFFDDEDDD),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(5),
             ),
             child: Row(
               children: [
@@ -578,7 +606,7 @@ class _AuctionResultCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(48),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
                   child: const Text('Call Us'),
@@ -594,7 +622,7 @@ class _AuctionResultCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     minimumSize: const Size.fromHeight(48),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
                   child: const Text('Write us'),
