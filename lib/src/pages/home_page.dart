@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../features/wishlist/wishlist_controller.dart';
 import '../features/home/presentation/cubit/home_cubit.dart';
 import '../features/home/presentation/cubit/home_state.dart';
 import '../models/auto_trader_models.dart';
+import '../config/app_config.dart';
 import '../repositories/auto_trader_repository.dart';
 import '../widgets/vehicle_card_tile.dart';
 import 'auction_calculator_page.dart';
@@ -119,7 +121,7 @@ class _HomeViewState extends State<_HomeView> {
                                   subtitle:
                                       'Discover the Future of Driving - Clean, Quiet, Powerful.',
                                   vehicles:
-                                      state.electricFeatured.take(3).toList(),
+                                      state.electricFeatured.take(1).toList(),
                                   onTap: (vehicle) =>
                                       _openDetails(context, vehicle),
                                   onToggleWishlist: _toggleWishlist,
@@ -147,7 +149,7 @@ class _HomeViewState extends State<_HomeView> {
                                   subtitle:
                                       'Browse vehicles in Azerbaijan, ready for you to drive home today.',
                                   vehicles:
-                                      state.azerbaijanFeatured.take(3).toList(),
+                                      state.azerbaijanFeatured.take(1).toList(),
                                   onTap: (vehicle) =>
                                       _openDetails(context, vehicle),
                                   onToggleWishlist: _toggleWishlist,
@@ -168,61 +170,7 @@ class _HomeViewState extends State<_HomeView> {
                                   showImageNavigation: true,
                                   showImageIndicators: true,
                                 ),
-                                const SizedBox(height: 26),
-                                _HomepageInventorySection(
-                                  titleStart: 'Cars on ',
-                                  titleAccent: 'auction',
-                                  subtitle:
-                                      'View cars in auction ready for immediate purchase with Buy It Now options.',
-                                  vehicles:
-                                      state.homepageVehicles.take(3).toList(),
-                                  onTap: (vehicle) =>
-                                      _openDetails(context, vehicle),
-                                  onToggleWishlist: _toggleWishlist,
-                                  isWishlisted: wishlist.contains,
-                                  onViewAll: _openActiveLots,
-                                  eyebrowBuilder: (vehicle) =>
-                                      _cardEyebrow(vehicle, preferBodyType: true),
-                                  factsBuilder: _regionalFacts,
-                                  enableImageCarousel: true,
-                                  autoPlayGallery: true,
-                                  showImageNavigation: true,
-                                  showImageIndicators: true,
-                                ),
-                                const SizedBox(height: 26),
-                                _HelpRequestCard(
-                                  countries: state.filterMetadata.countries,
-                                ),
-                                const SizedBox(height: 26),
-                                _SalvageInventorySection(
-                                  makes: state.filterMetadata.makes,
-                                ),
                                 const SizedBox(height: 36),
-                                _AutoTraderFooter(
-                                  onHomeTap: _scrollToTop,
-                                  onAuctionTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => const AuctionsPage(),
-                                    ),
-                                  ),
-                                  onShippingTap:
-                                      () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              const ShippingCalculatorPage(),
-                                        ),
-                                      ),
-                                  onElectricTap: () => _openSearch(
-                                    const VehicleSearchFilters(
-                                      fuel: LabeledOption(
-                                        label: 'Electric',
-                                        id: 'Electric',
-                                      ),
-                                    ),
-                                  ),
-                                  onImportTap: _openInventory,
-                                ),
-                                const SizedBox(height: 110),
                               ],
                             ),
                           ),
@@ -612,7 +560,7 @@ class _HeroSlide {
   final String rightAsset;
 }
 
-class _WebsiteTopSection extends StatelessWidget {
+class _WebsiteTopSection extends StatefulWidget {
   const _WebsiteTopSection({
     required this.onHomeTap,
     required this.onElectricTap,
@@ -628,18 +576,63 @@ class _WebsiteTopSection extends StatelessWidget {
   final VoidCallback onSearchTap;
 
   @override
+  State<_WebsiteTopSection> createState() => _WebsiteTopSectionState();
+}
+
+class _WebsiteTopSectionState extends State<_WebsiteTopSection> {
+  String _language = 'EN';
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      decoration: const BoxDecoration(color: Colors.white),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE4E7F4)),
+        ),
+      ),
       child: Row(
         children: [
           Image.asset('assets/brands/logo.png', height: 28),
           const Spacer(),
-          IconButton(
-            onPressed: () => _showMenu(context),
-            icon: const Icon(Icons.menu_rounded),
+          Builder(
+            builder: (context) => InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => _showLanguageMenu(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      _language,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFE4E7F4)),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: IconButton(
+              onPressed: () => _showMenu(context),
+              icon: const Icon(Icons.menu_rounded, size: 20),
+              splashRadius: 20,
+            ),
           ),
         ],
       ),
@@ -655,11 +648,11 @@ class _WebsiteTopSection extends StatelessWidget {
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) => _HomeMenuOverlay(
         onClose: () => Navigator.of(context).pop(),
-        onHomeTap: onHomeTap,
-        onElectricTap: onElectricTap,
-        onMenuAction: onMenuAction,
-        onImportCountrySelected: onImportCountrySelected,
-        onSearchTap: onSearchTap,
+        onHomeTap: widget.onHomeTap,
+        onElectricTap: widget.onElectricTap,
+        onMenuAction: widget.onMenuAction,
+        onImportCountrySelected: widget.onImportCountrySelected,
+        onSearchTap: widget.onSearchTap,
       ),
       transitionBuilder: (context, animation, _, child) {
         final curve = CurvedAnimation(
@@ -678,6 +671,36 @@ class _WebsiteTopSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _showLanguageMenu(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    if (box == null) {
+      return;
+    }
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(const Offset(0, 0), ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      items: const [
+        PopupMenuItem(value: 'AZ', child: Text('AZ')),
+        PopupMenuItem(value: 'EN', child: Text('EN')),
+      ],
+    );
+    if (selected != null && selected != _language) {
+      setState(() {
+        _language = selected;
+      });
+    }
   }
 }
 
@@ -1353,7 +1376,7 @@ class _QuickSearchCard extends StatelessWidget {
                                     ),
                                   )
                                 : const Icon(Icons.search_rounded, size: 18),
-                            label: const Text('Search'),
+                            label: const Text('Find Your Car'),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFFD21D39),
                               foregroundColor: Colors.white,
@@ -1553,6 +1576,7 @@ class _HelpRequestCardState extends State<_HelpRequestCard> {
   late final TextEditingController _nameController;
   String? _selectedCountryKey;
   bool _isVerified = false;
+  String? _recaptchaToken;
   bool _hasName = false;
 
   @override
@@ -1655,6 +1679,7 @@ class _HelpRequestCardState extends State<_HelpRequestCard> {
               orElse: () => null,
             );
     final dialCode = _countryDialCode(selectedCountry?.label);
+    final canSubmit = _recaptchaToken != null;
 
     return Container(
       width: double.infinity,
@@ -1765,40 +1790,25 @@ class _HelpRequestCardState extends State<_HelpRequestCard> {
                       : const Color(0xFFE4E7F4),
                 ),
               ),
-              child: InkWell(
-                onTap: () {
+              child: _RecaptchaBox(
+                isVerified: _isVerified,
+                onVerified: (token) {
                   setState(() {
-                    _isVerified = !_isVerified;
+                    _isVerified = true;
+                    _recaptchaToken = token;
                   });
                 },
-                child: Row(
-                  children: [
-                    Icon(
-                      _isVerified
-                          ? Icons.check_box_rounded
-                          : Icons.check_box_outline_blank_rounded,
-                      size: 20,
-                      color: _isVerified
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFF111827),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isVerified ? 'Verified' : 'Click to Verify',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: _isVerified
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFF111827),
-                      ),
-                    ),
-                  ],
-                ),
+                onExpired: () {
+                  setState(() {
+                    _isVerified = false;
+                    _recaptchaToken = null;
+                  });
+                },
               ),
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () {},
+              onPressed: canSubmit ? () {} : null,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFD21D39),
                 foregroundColor: Colors.white,
@@ -1812,6 +1822,150 @@ class _HelpRequestCardState extends State<_HelpRequestCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RecaptchaBox extends StatefulWidget {
+  const _RecaptchaBox({
+    required this.isVerified,
+    required this.onVerified,
+    required this.onExpired,
+  });
+
+  final bool isVerified;
+  final ValueChanged<String> onVerified;
+  final VoidCallback onExpired;
+
+  @override
+  State<_RecaptchaBox> createState() => _RecaptchaBoxState();
+}
+
+class _RecaptchaBoxState extends State<_RecaptchaBox> {
+  late final WebViewController _controller;
+  bool _isLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        'Recaptcha',
+        onMessageReceived: (message) {
+          final payload = message.message.trim();
+          if (payload == 'expired' || payload == 'error') {
+            widget.onExpired();
+            return;
+          }
+          if (payload.isNotEmpty) {
+            widget.onVerified(payload);
+          }
+        },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) {
+              setState(() => _isLoaded = true);
+            }
+          },
+        ),
+      )
+      ..loadHtmlString(_recaptchaHtml(), baseUrl: 'https://autotrader.az');
+  }
+
+  String _recaptchaHtml() {
+    final siteKey = AppConfig.recaptchaSiteKey;
+    return '''
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+      .wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 72px;
+      }
+    </style>
+    <script>
+      function onCaptchaVerified(token) {
+        Recaptcha.postMessage(token);
+      }
+      function onCaptchaExpired() {
+        Recaptcha.postMessage('expired');
+      }
+      function onCaptchaError() {
+        Recaptcha.postMessage('error');
+      }
+    </script>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="g-recaptcha"
+        data-sitekey="$siteKey"
+        data-callback="onCaptchaVerified"
+        data-expired-callback="onCaptchaExpired"
+        data-error-callback="onCaptchaError">
+      </div>
+    </div>
+  </body>
+</html>
+''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (AppConfig.recaptchaSiteKey.isEmpty) {
+      return Text(
+        'Add your reCAPTCHA site key in AppConfig.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF6B7280),
+            ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 78,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: WebViewWidget(controller: _controller),
+          ),
+        ),
+        if (!_isLoaded)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Loading reCAPTCHA...',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6B7280),
+                  ),
+            ),
+          ),
+        if (widget.isVerified)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Verified',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF16A34A),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+      ],
     );
   }
 }

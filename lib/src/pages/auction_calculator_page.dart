@@ -55,7 +55,9 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
           onSelectCustoms: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute<void>(
-                builder: (_) => const CustomsCalculatorPage(),
+                builder: (_) => CustomsCalculatorPage(
+                  embedded: widget.embedded,
+                ),
               ),
             );
           },
@@ -237,18 +239,20 @@ class CalculatorTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CalculatorTab(
-          label: 'Detailed Customs Fee Calculator',
-          icon: Icons.directions_car_outlined,
-          isSelected: !isAuctionSelected,
-          onTap: onSelectCustoms,
+        Expanded(
+          child: CalculatorTab(
+            label: 'Detailed Customs Fee Calculator',
+            isSelected: !isAuctionSelected,
+            onTap: onSelectCustoms,
+          ),
         ),
-        const SizedBox(width: 26),
-        CalculatorTab(
-          label: 'Auction Calculator',
-          icon: Icons.construction_rounded,
-          isSelected: isAuctionSelected,
-          onTap: onSelectAuction,
+        const SizedBox(width: 12),
+        Expanded(
+          child: CalculatorTab(
+            label: 'Auction Calculator',
+            isSelected: isAuctionSelected,
+            onTap: onSelectAuction,
+          ),
         ),
       ],
     );
@@ -259,45 +263,42 @@ class CalculatorTab extends StatelessWidget {
   const CalculatorTab({
     super.key,
     required this.label,
-    required this.icon,
     required this.isSelected,
     this.onTap,
   });
 
   final String label;
-  final IconData icon;
   final bool isSelected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFFE3354A) : const Color(0xFF636B79);
+    final textColor = isSelected ? Colors.white : const Color(0xFFE3354A);
+    final backgroundColor =
+        isSelected ? const Color(0xFFE3354A) : Colors.white;
+    final borderColor = const Color(0xFFE4E7F4);
 
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.only(bottom: 10),
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? const Color(0xFFE3354A) : Colors.transparent,
-              width: 2,
-            ),
-          ),
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        child: Center(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
         ),
       ),
     );

@@ -68,7 +68,9 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
           onSelectAuction: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute<void>(
-                builder: (_) => const AuctionCalculatorPage(),
+                builder: (_) => AuctionCalculatorPage(
+                  embedded: widget.embedded,
+                ),
               ),
             );
           },
