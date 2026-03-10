@@ -314,6 +314,7 @@ class VehicleAttributes {
 
 class VehicleSearchFilters {
   const VehicleSearchFilters({
+    this.query,
     this.make,
     this.model,
     this.bodyType,
@@ -333,6 +334,7 @@ class VehicleSearchFilters {
     this.odometerMax,
   });
 
+  final String? query;
   final LabeledOption? make;
   final LabeledOption? model;
   final LabeledOption? bodyType;
@@ -354,6 +356,7 @@ class VehicleSearchFilters {
   static const _unset = Object();
 
   VehicleSearchFilters copyWith({
+    Object? query = _unset,
     Object? make = _unset,
     Object? model = _unset,
     Object? bodyType = _unset,
@@ -373,6 +376,7 @@ class VehicleSearchFilters {
     Object? odometerMax = _unset,
   }) {
     return VehicleSearchFilters(
+      query: identical(query, _unset) ? this.query : query as String?,
       make: identical(make, _unset) ? this.make : make as LabeledOption?,
       model: identical(model, _unset) ? this.model : model as LabeledOption?,
       bodyType: identical(bodyType, _unset)
@@ -410,7 +414,8 @@ class VehicleSearchFilters {
   }
 
   bool get hasActiveValues {
-    return make != null ||
+    return (query != null && query!.trim().isNotEmpty) ||
+        make != null ||
         model != null ||
         bodyType != null ||
         fuel != null ||
@@ -431,6 +436,20 @@ class VehicleSearchFilters {
 
   Map<String, String> toQueryParameters() {
     final params = <String, String>{};
+    final queryValue = query?.trim();
+    if (queryValue != null && queryValue.isNotEmpty) {
+      final normalizedQuery = _normalizeSearchValue(queryValue);
+      params['search'] = normalizedQuery;
+      final vin = _extractVin(normalizedQuery);
+      if (vin != null) {
+        params['vin'] = vin;
+      }
+      final lot = _extractLot(normalizedQuery);
+      if (lot != null) {
+        params['lot_number'] = lot;
+        params['lot'] = lot;
+      }
+    }
 
     _putOption(params, option: make, idKey: 'make_id', fallbackKey: 'make');
     _putOption(params, option: model, idKey: 'model_id', fallbackKey: 'model');
@@ -1796,6 +1815,38 @@ String _normalizePairKey(String key) {
     }
   }
   return buffer.toString();
+}
+
+String _normalizeSearchValue(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return '';
+  }
+  final vin = _extractVin(trimmed);
+  if (vin != null) {
+    return vin;
+  }
+  final lot = _extractLot(trimmed);
+  if (lot != null) {
+    return lot;
+  }
+  return trimmed.replaceAll(RegExp(r'\s+'), ' ');
+}
+
+String? _extractVin(String raw) {
+  final cleaned = raw.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+  if (cleaned.length != 17) {
+    return null;
+  }
+  return cleaned.toUpperCase();
+}
+
+String? _extractLot(String raw) {
+  final match = RegExp(r'\d{5,}').firstMatch(raw);
+  if (match == null) {
+    return null;
+  }
+  return match.group(0);
 }
 
 num? _pickNumber([

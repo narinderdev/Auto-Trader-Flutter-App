@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../models/auto_trader_models.dart';
 import '../repositories/auto_trader_repository.dart';
 import 'customs_calculator_page.dart';
 import 'home_page.dart';
@@ -23,35 +25,20 @@ class AppShellPage extends StatefulWidget {
 class _AppShellPageState extends State<AppShellPage> {
   int _currentIndex = 0;
   final GlobalKey<NavigatorState> _homeNavKey = GlobalKey<NavigatorState>();
-
-  late final List<Widget> _tabs = [
-    _HomeTabNavigator(
-      initialHomeData: widget.initialHomeData,
-      navigatorKey: _homeNavKey,
-    ),
-    const _CalculatorTabNavigator(),
-    const _SearchTabNavigator(),
-    const NotificationsPage(embedded: true),
-    ProfilePage(
-      embedded: true,
-      onReturnHome: () {
-        setState(() {
-          _currentIndex = 0;
-        });
-      },
-    ),
-  ];
+  VehicleSearchFilters _searchFilters = const VehicleSearchFilters();
+  int _searchSeed = 0;
 
   @override
   Widget build(BuildContext context) {
-    final activeIndex = _currentIndex >= _tabs.length ? 0 : _currentIndex;
+    final tabs = _buildTabs();
+    final activeIndex = _currentIndex >= tabs.length ? 0 : _currentIndex;
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             const _AppHeader(),
             Expanded(
-              child: IndexedStack(index: activeIndex, children: _tabs),
+              child: IndexedStack(index: activeIndex, children: tabs),
             ),
           ],
         ),
@@ -71,6 +58,29 @@ class _AppShellPageState extends State<AppShellPage> {
     );
   }
 
+  List<Widget> _buildTabs() {
+    return [
+      _HomeTabNavigator(
+        initialHomeData: widget.initialHomeData,
+        navigatorKey: _homeNavKey,
+      ),
+      const _CalculatorTabNavigator(),
+      _SearchTabNavigator(
+        key: ValueKey('search-tab-$_searchSeed'),
+        initialFilters: _searchFilters,
+      ),
+      const NotificationsPage(embedded: true),
+      ProfilePage(
+        embedded: true,
+        onReturnHome: () {
+          setState(() {
+            _currentIndex = 0;
+          });
+        },
+      ),
+    ];
+  }
+
   void _showSearchOverlay(BuildContext context) {
     showGeneralDialog<void>(
       context: context,
@@ -80,6 +90,14 @@ class _AppShellPageState extends State<AppShellPage> {
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) => _SearchOverlay(
         onClose: () => Navigator.of(context).pop(),
+        onSubmit: (filters) {
+          Navigator.of(context).pop();
+          setState(() {
+            _searchFilters = filters;
+            _searchSeed += 1;
+            _currentIndex = 2;
+          });
+        },
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curve = CurvedAnimation(
@@ -144,14 +162,19 @@ class _HomeTabNavigator extends StatelessWidget {
 }
 
 class _SearchTabNavigator extends StatelessWidget {
-  const _SearchTabNavigator();
+  const _SearchTabNavigator({super.key, required this.initialFilters});
+
+  final VehicleSearchFilters initialFilters;
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
       onGenerateRoute: (settings) {
         return MaterialPageRoute<void>(
-          builder: (_) => const SearchPage(showScaffold: false),
+          builder: (_) => SearchPage(
+            showScaffold: false,
+            initialFilters: initialFilters,
+          ),
           settings: settings,
         );
       },
@@ -278,9 +301,10 @@ class _AppHeaderState extends State<_AppHeader> {
 }
 
 class _SearchOverlay extends StatefulWidget {
-  const _SearchOverlay({required this.onClose});
+  const _SearchOverlay({required this.onClose, required this.onSubmit});
 
   final VoidCallback onClose;
+  final ValueChanged<VehicleSearchFilters> onSubmit;
 
   @override
   State<_SearchOverlay> createState() => _SearchOverlayState();
@@ -294,6 +318,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   bool _isLoading = false;
   List<_SearchSuggestion> _results = const [];
   Timer? _suggestionTimer;
+  int _requestId = 0;
 
   @override
   void initState() {
@@ -328,30 +353,57 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       if (!mounted) {
         return;
       }
-      final normalized = next.trim().toLowerCase();
-      final hasMatch = normalized.contains('harley') ||
-          normalized.contains('1hd') ||
-          normalized.contains('lot');
+      _loadSuggestions(next.trim());
+    });
+  }
+
+  Future<void> _loadSuggestions(String query) async {
+    final requestId = ++_requestId;
+    setState(() {
+      _isLoading = true;
+      _results = const [];
+    });
+
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final filters = VehicleSearchFilters(
+        query: query,
+        country: _auction ? auctionCountryOption : null,
+      );
+      final response = await repository.searchVehicles(
+        filters,
+        page: 1,
+        limit: 5,
+      );
+      if (!mounted || requestId != _requestId) {
+        return;
+      }
+      final suggestions = response.vehicles.map(_SearchSuggestion.fromVehicle);
       setState(() {
         _isLoading = false;
-        _results = hasMatch
-            ? const [
-                _SearchSuggestion(
-                  title: '1HD1KH711RB634834',
-                  subtitle: '2024 HARLEY-DAVIDSON\nFL',
-                ),
-                _SearchSuggestion(
-                  title: 'Lot 66498035',
-                  subtitle: '2024 HARLEY-DAVIDSON\nFL',
-                ),
-                _SearchSuggestion(
-                  title: 'HARLEY-DAVIDSON',
-                  subtitle: 'FL',
-                ),
-              ]
-            : const [];
+        _results = suggestions.toList();
       });
-    });
+    } catch (_) {
+      if (!mounted || requestId != _requestId) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+        _results = const [];
+      });
+    }
+  }
+
+  void _submitSearch({String? overrideQuery}) {
+    final rawQuery = (overrideQuery ?? _queryText).trim();
+    if (rawQuery.isEmpty) {
+      return;
+    }
+    final filters = VehicleSearchFilters(
+      query: rawQuery,
+      country: _auction ? auctionCountryOption : null,
+    );
+    widget.onSubmit(filters);
   }
 
   @override
@@ -395,6 +447,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             focusedBorder: InputBorder.none,
                             isDense: true,
                           ),
+                          onSubmitted: (_) => _submitSearch(),
                         ),
                       ),
                     ],
@@ -454,10 +507,13 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                     .map(
                                       (item) => InkWell(
                                         onTap: () {
-                                          _queryController.text = item.title;
+                                          _queryController.text = item.query;
                                           _queryController.selection =
                                               TextSelection.collapsed(
-                                            offset: item.title.length,
+                                            offset: item.query.length,
+                                          );
+                                          _submitSearch(
+                                            overrideQuery: item.query,
                                           );
                                         },
                                         child: Padding(
@@ -520,6 +576,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                               _other = false;
                             }
                           });
+                          if (_queryText.trim().isNotEmpty) {
+                            _loadSuggestions(_queryText.trim());
+                          }
                         },
                         activeColor: const Color(0xFFD21D39),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -535,6 +594,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                               _auction = false;
                             }
                           });
+                          if (_queryText.trim().isNotEmpty) {
+                            _loadSuggestions(_queryText.trim());
+                          }
                         },
                         activeColor: const Color(0xFFD21D39),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -542,7 +604,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                       const Text('Other'),
                       const Spacer(),
                       FilledButton(
-                        onPressed: hasQuery ? widget.onClose : null,
+                        onPressed: hasQuery ? _submitSearch : null,
                         style: FilledButton.styleFrom(
                           backgroundColor: hasQuery
                               ? const Color(0xFFD21D39)
@@ -682,10 +744,31 @@ class _BottomNavBar extends StatelessWidget {
 }
 
 class _SearchSuggestion {
-  const _SearchSuggestion({required this.title, required this.subtitle});
+  const _SearchSuggestion({
+    required this.title,
+    required this.subtitle,
+    required this.query,
+  });
 
   final String title;
   final String subtitle;
+  final String query;
+
+  factory _SearchSuggestion.fromVehicle(VehicleSummary vehicle) {
+    final vin = vehicle.vin.trim();
+    final lot = vehicle.lotNumber.trim();
+    final title =
+        vin.isNotEmpty ? vin : (lot.isNotEmpty ? 'Lot $lot' : vehicle.title);
+    final subtitleParts = <String>[
+      if (vehicle.year != null) vehicle.year.toString(),
+      vehicle.make.trim(),
+      vehicle.model.trim(),
+    ].where((value) => value.isNotEmpty).toList();
+    final subtitle =
+        subtitleParts.isNotEmpty ? subtitleParts.join(' ') : vehicle.title;
+    final query = vin.isNotEmpty ? vin : (lot.isNotEmpty ? lot : vehicle.title);
+    return _SearchSuggestion(title: title, subtitle: subtitle, query: query);
+  }
 }
 class _LanguageMenuItem extends StatelessWidget {
   const _LanguageMenuItem({

@@ -312,12 +312,16 @@ class _SearchViewState extends State<_SearchView> {
 String _defaultSearchTitle(VehicleSearchFilters filters) {
   final countryLabel = filters.country?.label.trim().toLowerCase();
   final fuelLabel = filters.fuel?.label.trim().toLowerCase();
+  final query = filters.query?.trim();
 
   if (countryLabel == 'auction') {
     return 'Active Lots';
   }
   if (fuelLabel == 'electric') {
     return 'Electric Vehicles';
+  }
+  if (query != null && query.isNotEmpty) {
+    return 'Search Results';
   }
   return 'Vehicle Search';
 }
@@ -499,6 +503,13 @@ class _FiltersCard extends StatelessWidget {
       addOption(
         filters.make!.label,
         (current) => current.copyWith(make: null),
+      );
+    }
+    final query = filters.query?.trim();
+    if (query != null && query.isNotEmpty) {
+      addOption(
+        'Search: $query',
+        (current) => current.copyWith(query: null),
       );
     }
     if (filters.model != null) {
