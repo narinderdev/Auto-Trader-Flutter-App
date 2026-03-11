@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import 'auction_calculator_page.dart';
 
@@ -20,6 +23,8 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
     'China',
     'European Union',
   ];
+  static const _customsApiUrl =
+      'https://c2b-fbusiness.customs.gov.az/api/v1/dictionaries/calAutoDuty';
 
   final TextEditingController _invoiceValueController = TextEditingController(
     text: '0',
@@ -39,6 +44,8 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
   DateTime? _issueDate;
 
   late List<_CustomsResultItem> _resultItems;
+  double? _resultTotal;
+  bool _isLoading = false;
   bool _showErrors = false;
 
   @override
@@ -62,9 +69,8 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
     final invoiceInvalid =
         (double.tryParse(_invoiceValueController.text.trim()) ?? 0) <= 0;
     final transportationInvalid =
-        (double.tryParse(_transportationCostsController.text.trim()) ?? 0) <= 0;
-    final otherInvalid =
-        (double.tryParse(_otherExpensesController.text.trim()) ?? 0) <= 0;
+        _isOptionalAmountInvalid(_transportationCostsController.text);
+    final otherInvalid = _isOptionalAmountInvalid(_otherExpensesController.text);
     final engineCapacityInvalid =
         (double.tryParse(_engineCapacityController.text.trim()) ?? 0) <= 0;
     final issueDateInvalid = _issueDate == null;
@@ -169,7 +175,10 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
                 onClear: _clear,
               );
 
-              final result = _CustomsResultCard(items: _resultItems);
+              final result = _CustomsResultCard(
+                items: _resultItems,
+                totalOverride: _resultTotal,
+              );
 
               if (constraints.maxWidth < 900) {
                 return Column(
@@ -224,13 +233,15 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
   }
 
   void _calculate() {
+    if (_isLoading) {
+      return;
+    }
     final engineTypeInvalid = _engineType == _engineTypes.first;
     final invoiceInvalid =
         (double.tryParse(_invoiceValueController.text.trim()) ?? 0) <= 0;
     final transportationInvalid =
-        (double.tryParse(_transportationCostsController.text.trim()) ?? 0) <= 0;
-    final otherInvalid =
-        (double.tryParse(_otherExpensesController.text.trim()) ?? 0) <= 0;
+        _isOptionalAmountInvalid(_transportationCostsController.text);
+    final otherInvalid = _isOptionalAmountInvalid(_otherExpensesController.text);
     final engineCapacityInvalid =
         (double.tryParse(_engineCapacityController.text.trim()) ?? 0) <= 0;
     final issueDateInvalid = _issueDate == null;
@@ -250,39 +261,61 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
     final invoiceValue =
         double.tryParse(_invoiceValueController.text.trim()) ?? 0;
     final transportCost =
-        double.tryParse(_transportationCostsController.text.trim()) ?? 0;
-    final otherExpenses =
-        double.tryParse(_otherExpensesController.text.trim()) ?? 0;
+        _parseOptionalAmount(_transportationCostsController.text);
+    final otherExpenses = _parseOptionalAmount(_otherExpensesController.text);
     final engineCapacity =
         double.tryParse(_engineCapacityController.text.trim()) ?? 0;
+    final issueDate = _issueDate;
+    if (issueDate == null) {
+      return;
+    }
 
     final customsBase = invoiceValue + transportCost + otherExpenses;
-    final importDuty = customsBase * 0.15;
-    final vat = (customsBase + importDuty) * 0.18;
-    final clearanceFee = customsBase * 0.01;
-    final exciseTax = _engineType == 'Electric' ? 0.0 : engineCapacity * 0.06;
-    final certificateFee = _originCountry == 'European Union' ? 60.0 : 90.0;
 
     setState(() {
       _showErrors = false;
-      _resultItems = [
-        _CustomsResultItem('Import customs duty', importDuty),
-        _CustomsResultItem('Value added tax (VAT)', vat),
-        _CustomsResultItem(
-          'Customs fees for customs clearance of goods',
-          clearanceFee,
+      _isLoading = true;
+    });
+
+    _fetchCustomsFees(
+      price: customsBase,
+      engine: engineCapacity,
+      issueDate: issueDate,
+      autoType: _mapVehicleType(_vehicleType),
+      engineType: _mapEngineType(_engineType),
+      commerceType: _mapCommerceType(_originCountry),
+    ).then((result) {
+      if (!mounted) {
+        return;
+      }
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to fetch customs fees. Please try again.'),
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+      setState(() {
+        _resultItems = result.items;
+        _resultTotal = result.total;
+        _isLoading = false;
+      });
+    }).catchError((error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to fetch customs fees. Please try again.'),
         ),
-        _CustomsResultItem('Excise tax', exciseTax),
-        _CustomsResultItem('Customs fees for issuing certificates', 45.0),
-        _CustomsResultItem('Electronic customs service fee', 30.0),
-        _CustomsResultItem('VAT on electronic customs services', 5.4),
-        _CustomsResultItem('Disposal fee', 25.0),
-        _CustomsResultItem('Conducting customs expertise fee', 40.0),
-        _CustomsResultItem(
-          'Certificate of compliance with standards fee',
-          certificateFee,
-        ),
-      ];
+      );
+      setState(() {
+        _isLoading = false;
+      });
     });
   }
 
@@ -298,6 +331,8 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
       _engineCapacityController.text = '0';
       _issueDate = null;
       _resultItems = _emptyResultItems();
+      _resultTotal = 0;
+      _isLoading = false;
     });
   }
 
@@ -317,6 +352,163 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
         0,
       ),
     ];
+  }
+
+  Future<_CustomsApiResult?> _fetchCustomsFees({
+    required double price,
+    required double engine,
+    required DateTime issueDate,
+    required int autoType,
+    required int engineType,
+    required int commerceType,
+  }) async {
+    final payload = jsonEncode({
+      'commerceType': commerceType,
+      'autoType': autoType,
+      'engineType': engineType,
+      'price': price.truncate(),
+      'engine': engine.truncate(),
+      'issueDate': _formatIssueDate(issueDate),
+    });
+    final response = await http.post(
+      Uri.parse(_customsApiUrl),
+      headers: const {'Content-Type': 'application/json'},
+      body: payload,
+    );
+    if (response.statusCode != 200) {
+      return null;
+    }
+    final body = jsonDecode(response.body);
+    if (body is! Map) {
+      return null;
+    }
+    final data = body['data'];
+    if (data is! Map) {
+      return null;
+    }
+    final autoDuty = data['autoDuty'];
+    if (autoDuty is! Map) {
+      return null;
+    }
+    final duties = autoDuty['duties'];
+    if (duties is! List) {
+      return null;
+    }
+
+    final valuesByCode = <String, double>{};
+    for (final item in duties) {
+      if (item is! Map) {
+        continue;
+      }
+      final code = item['code']?.toString();
+      final value = item['value'];
+      if (code == null || value is! num) {
+        continue;
+      }
+      valuesByCode[code] = value.toDouble();
+    }
+
+    const dutyOrder = [
+      '20', // Import customs duty
+      '32', // VAT
+      '01', // Customs clearance fee
+      '30', // Excise tax
+      '05', // Certificates
+      '75', // Electronic customs service
+      '85', // VAT on electronic customs services
+      '56', // Disposal fee
+      '55', // Customs expertise fee
+      '71', // Certificate of compliance
+    ];
+
+    const dutyLabels = {
+      '20': 'Import customs duty',
+      '32': 'Value added tax (VAT)',
+      '01': 'Customs fees for customs clearance of goods',
+      '30': 'Excise tax',
+      '05': 'Customs fees for issuing certificates',
+      '75': 'Electronic customs service fee',
+      '85': 'VAT on electronic customs services',
+      '56': 'Disposal fee',
+      '55': 'Conducting customs expertise fee',
+      '71': 'Certificate of compliance with standards fee',
+    };
+
+    final items = <_CustomsResultItem>[];
+    for (final code in dutyOrder) {
+      items.add(
+        _CustomsResultItem(
+          dutyLabels[code] ?? code,
+          valuesByCode[code] ?? 0,
+        ),
+      );
+    }
+
+    final total = autoDuty['total'];
+    double? totalValue;
+    if (total is Map && total['value'] is num) {
+      totalValue = (total['value'] as num).toDouble();
+    }
+
+    return _CustomsApiResult(items: items, total: totalValue);
+  }
+
+  int _mapVehicleType(String value) {
+    switch (value) {
+      case 'Passenger car':
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
+  int _mapEngineType(String value) {
+    switch (value) {
+      case 'Petrol':
+        return 0;
+      case 'Diesel':
+        return 1;
+      case 'Hybrid':
+        return 3;
+      case 'Electric':
+        return 5;
+      default:
+        return 0;
+    }
+  }
+
+  int _mapCommerceType(String value) {
+    if (value == 'European Union') {
+      return 1;
+    }
+    return 0;
+  }
+
+  String _formatIssueDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day.$month.${value.year}';
+  }
+
+  bool _isOptionalAmountInvalid(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    final value = double.tryParse(trimmed);
+    return value == null || value < 0;
+  }
+
+  double _parseOptionalAmount(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return 0;
+    }
+    final value = double.tryParse(trimmed);
+    if (value == null || value < 0) {
+      return 0;
+    }
+    return value;
   }
 }
 
@@ -422,18 +614,18 @@ class _CustomsVehicleForm extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _NumberField(
-            label: 'Transportation costs (USD)',
+            label: 'Transportation costs (USD) (optional)',
             controller: transportationCostsController,
             errorText: showErrors && transportationInvalid
-                ? 'This field is required'
+                ? 'Enter a valid amount'
                 : null,
           ),
           const SizedBox(height: 14),
           _NumberField(
-            label: 'Other expenses (USD)',
+            label: 'Other expenses (USD) (optional)',
             controller: otherExpensesController,
             errorText:
-                showErrors && otherInvalid ? 'This field is required' : null,
+                showErrors && otherInvalid ? 'Enter a valid amount' : null,
           ),
           const SizedBox(height: 14),
           _NumberField(
@@ -499,7 +691,7 @@ class _CustomsVehicleForm extends StatelessWidget {
           if (showRequiredMessage) ...[
             const SizedBox(height: 10),
             Text(
-              'Please fill all required fields',
+              'Please fix the highlighted fields',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: const Color(0xFFEF4444),
                     fontWeight: FontWeight.w600,
@@ -580,13 +772,15 @@ class _DateField extends StatelessWidget {
 }
 
 class _CustomsResultCard extends StatelessWidget {
-  const _CustomsResultCard({required this.items});
+  const _CustomsResultCard({required this.items, this.totalOverride});
 
   final List<_CustomsResultItem> items;
+  final double? totalOverride;
 
   @override
   Widget build(BuildContext context) {
-    final total = items.fold<double>(0, (sum, item) => sum + item.value);
+    final total =
+        totalOverride ?? items.fold<double>(0, (sum, item) => sum + item.value);
 
     return Container(
       padding: const EdgeInsets.all(28),
@@ -672,4 +866,11 @@ class _CustomsResultItem {
 
   final String label;
   final double value;
+}
+
+class _CustomsApiResult {
+  const _CustomsApiResult({required this.items, required this.total});
+
+  final List<_CustomsResultItem> items;
+  final double? total;
 }
