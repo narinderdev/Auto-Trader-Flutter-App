@@ -640,7 +640,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                     child: Material(
                       color: Colors.transparent,
                       child: Container(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                        padding: EdgeInsets.zero,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
@@ -652,147 +652,143 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
+                        child: Scrollbar(
+                          controller: _suggestionsScrollController,
+                          child: SingleChildScrollView(
+                            controller: _suggestionsScrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Results',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Results',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _showResultsModal = false;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.close_rounded),
+                                    ),
+                                  ],
                                 ),
-                                const Spacer(),
-                                IconButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showResultsModal = false;
-                                    });
-                                  },
-                                  icon: const Icon(Icons.close_rounded),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 16),
-                            Expanded(
-                              child: _isLoading
-                                  ? const Center(
+                                const Divider(height: 16),
+                                if (_isLoading)
+                                  const Center(
+                                    child: Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 24),
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
                                       ),
-                                    )
-                                  : suggestions.isEmpty
-                                      ? const Center(
-                                          child: Text(
-                                            'No results found',
-                                            style: TextStyle(
-                                              color: Color(0xFF6B7280),
+                                    ),
+                                  )
+                                else if (suggestions.isEmpty)
+                                  const Center(
+                                    child: Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 24),
+                                      child: Text(
+                                        'No results found',
+                                        style: TextStyle(
+                                          color: Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  for (final item in suggestions)
+                                    Builder(
+                                      builder: (context) {
+                                        final isPrimary =
+                                            item.type ==
+                                                    _SearchSuggestionType.vin ||
+                                                item.type ==
+                                                    _SearchSuggestionType.lot;
+                                        return InkWell(
+                                          onTap: () {
+                                            _suggestionTimer?.cancel();
+                                            if (_isSubmitting) {
+                                              return;
+                                            }
+                                            widget.onClose();
+                                            _queryController.text = item.query;
+                                            _queryController.selection =
+                                                TextSelection.collapsed(
+                                              offset: item.query.length,
+                                            );
+                                            setState(() {
+                                              _queryText = item.query;
+                                              _results = const [];
+                                              _isLoading = false;
+                                              _showResultsModal = false;
+                                            });
+                                            widget.onOpenDetails(
+                                              item.vehicle,
+                                            );
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                              horizontal: 4,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.title,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        fontWeight: isPrimary
+                                                            ? FontWeight.w600
+                                                            : FontWeight.w500,
+                                                        fontSize: isPrimary
+                                                            ? 14
+                                                            : 13,
+                                                        color: const Color(
+                                                          0xFF111827,
+                                                        ),
+                                                      ),
+                                                ),
+                                                if (isPrimary &&
+                                                    item.subtitle.isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      top: 2,
+                                                    ),
+                                                    child: Text(
+                                                      item.subtitle,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: const Color(
+                                                              0xFF6B7280,
+                                                            ),
+                                                          ),
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                           ),
-                                        )
-                                      : Scrollbar(
-                                          controller:
-                                              _suggestionsScrollController,
-                                          child: ListView.builder(
-                                            controller:
-                                                _suggestionsScrollController,
-                                            itemCount: suggestions.length,
-                                            itemBuilder: (context, index) {
-                                              final item = suggestions[index];
-                                              final isPrimary =
-                                                  item.type ==
-                                                          _SearchSuggestionType.vin ||
-                                                      item.type ==
-                                                          _SearchSuggestionType.lot;
-                                              return InkWell(
-                                                onTap: () {
-                                                  _suggestionTimer?.cancel();
-                                                  if (_isSubmitting) {
-                                                    return;
-                                                  }
-                                                  widget.onClose();
-                                                  _queryController.text =
-                                                      item.query;
-                                                  _queryController.selection =
-                                                      TextSelection.collapsed(
-                                                    offset: item.query.length,
-                                                  );
-                                                  setState(() {
-                                                    _queryText = item.query;
-                                                    _results = const [];
-                                                    _isLoading = false;
-                                                    _showResultsModal = false;
-                                                  });
-                                                  widget.onOpenDetails(
-                                                    item.vehicle,
-                                                  );
-                                                },
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    vertical: 8,
-                                                    horizontal: 4,
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        item.title,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                              fontWeight:
-                                                                  isPrimary
-                                                                      ? FontWeight
-                                                                          .w600
-                                                                      : FontWeight
-                                                                          .w500,
-                                                              fontSize:
-                                                                  isPrimary
-                                                                      ? 14
-                                                                      : 13,
-                                                              color:
-                                                                  const Color(
-                                                                0xFF111827,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      if (isPrimary &&
-                                                          item.subtitle
-                                                              .isNotEmpty)
-                                                        Padding(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .only(
-                                                            top: 2,
-                                                          ),
-                                                          child: Text(
-                                                            item.subtitle,
-                                                            style: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .bodySmall
-                                                                ?.copyWith(
-                                                                  color:
-                                                                      const Color(
-                                                                    0xFF6B7280,
-                                                                  ),
-                                                                ),
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
+                                        );
+                                      },
+                                    ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

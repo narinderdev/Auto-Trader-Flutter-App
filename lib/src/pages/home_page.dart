@@ -1333,34 +1333,34 @@ class _QuickSearchCard extends StatelessWidget {
     final cubit = context.read<HomeCubit>();
     final items = <Widget>[
       _OptionDropdown(
-        title: 'All Makes',
+        title: 'Select Makes',
         value: state.selectedMake,
         options: state.filterMetadata.makes,
         onChanged: cubit.selectMake,
       ),
       _OptionDropdown(
-        title: 'All Models',
+        title: 'Select Models',
         value: state.selectedModel,
         options: state.availableModels,
         onChanged: cubit.selectModel,
       ),
+      _OptionDropdown(
+        title: 'Auction',
+        value: state.selectedCountry,
+        options: state.availableCountries,
+        onChanged: cubit.selectCountry,
+      ),
       _YearDropdown(
-        title: 'From Year',
+        title: 'Select From Year',
         value: state.selectedFromYear,
         options: state.availableFromYears,
         onChanged: cubit.selectFromYear,
       ),
       _YearDropdown(
-        title: 'To Year',
+        title: 'Select To Year',
         value: state.selectedToYear,
         options: state.availableToYears,
         onChanged: cubit.selectToYear,
-      ),
-      _OptionDropdown(
-        title: 'USA',
-        value: state.selectedCountry,
-        options: state.availableCountries,
-        onChanged: cubit.selectCountry,
       ),
     ];
 
