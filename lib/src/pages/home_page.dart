@@ -1054,19 +1054,339 @@ class _HeaderSearchOverlay extends StatefulWidget {
 
 class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
   late final TextEditingController _controller;
+  final ScrollController _suggestionsScrollController = ScrollController();
+  final LayerLink _searchFieldLink = LayerLink();
+  final GlobalKey _searchFieldKey = GlobalKey();
+  final GlobalKey _auctionCheckboxKey = GlobalKey();
+  final GlobalKey _searchButtonKey = GlobalKey();
+  final GlobalKey _controlsRowKey = GlobalKey();
+  OverlayEntry? _suggestionsOverlay;
   bool _includeAuction = true;
   bool _includeOther = false;
+  bool _isCompactLayout = false;
+  String _queryText = '';
+  bool _isLoading = false;
+  List<_HeaderSearchSuggestion> _suggestions = const [];
+  Timer? _suggestionTimer;
+  int _requestId = 0;
+  bool _suppressSuggestions = false;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
+    _controller.addListener(_handleQueryChanged);
   }
 
   @override
   void dispose() {
+    _suggestionTimer?.cancel();
+    _controller.removeListener(_handleQueryChanged);
     _controller.dispose();
+    _suggestionsScrollController.dispose();
+    _removeSuggestionsOverlay();
     super.dispose();
+  }
+
+  void _handleQueryChanged() {
+    final next = _controller.text;
+    if (next == _queryText) {
+      return;
+    }
+    setState(() {
+      _queryText = next;
+      _isLoading = next.trim().isNotEmpty;
+      _suggestions = const [];
+      _suppressSuggestions = false;
+    });
+
+    _suggestionTimer?.cancel();
+    if (next.trim().isEmpty) {
+      return;
+    }
+    _suggestionTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) {
+        return;
+      }
+      _loadSuggestions(next.trim());
+    });
+  }
+
+  Future<void> _loadSuggestions(String query) async {
+    final requestId = ++_requestId;
+    setState(() {
+      _isLoading = true;
+      _suggestions = const [];
+    });
+
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final filters = VehicleSearchFilters(query: query);
+      final response = await repository.searchVehicles(
+        filters,
+        page: 1,
+        limit: 20,
+      );
+      if (!mounted || requestId != _requestId) {
+        return;
+      }
+      final suggestions = response.vehicles
+          .map(_HeaderSearchSuggestion.fromVehicle)
+          .whereType<_HeaderSearchSuggestion>()
+          .take(8)
+          .toList();
+      setState(() {
+        _isLoading = false;
+        _suggestions = suggestions;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _requestId) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+        _suggestions = const [];
+      });
+    }
+  }
+
+  void _removeSuggestionsOverlay() {
+    _suggestionsOverlay?.remove();
+    _suggestionsOverlay = null;
+  }
+
+  void _syncSuggestionsOverlay({required bool hasQuery}) {
+    if (!mounted) {
+      return;
+    }
+    if (_suppressSuggestions && !_isLoading) {
+      _removeSuggestionsOverlay();
+      return;
+    }
+    if (!hasQuery) {
+      _removeSuggestionsOverlay();
+      return;
+    }
+    if (_suggestionsOverlay == null) {
+      _suggestionsOverlay = OverlayEntry(
+        builder: (context) => _buildSuggestionsOverlay(context),
+      );
+      Overlay.of(context).insert(_suggestionsOverlay!);
+    } else {
+      _suggestionsOverlay!.markNeedsBuild();
+    }
+  }
+
+  Widget _buildSuggestionsOverlay(BuildContext context) {
+    final suggestions = _suggestions;
+    final renderBox =
+        _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final fieldWidth = renderBox?.size.width ?? 260;
+    final fieldOffset = renderBox?.localToGlobal(Offset.zero);
+    final checkboxBox =
+        _auctionCheckboxKey.currentContext?.findRenderObject() as RenderBox?;
+    final searchButtonBox =
+        _searchButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final controlsBox =
+        _controlsRowKey.currentContext?.findRenderObject() as RenderBox?;
+    final checkboxOffset = checkboxBox?.localToGlobal(Offset.zero);
+    final searchButtonOffset = searchButtonBox?.localToGlobal(Offset.zero);
+    final checkboxBottom = (checkboxOffset != null && checkboxBox != null)
+        ? checkboxOffset.dy + checkboxBox.size.height
+        : null;
+    final searchButtonBottom =
+        (searchButtonOffset != null && searchButtonBox != null)
+            ? searchButtonOffset.dy + searchButtonBox.size.height
+            : null;
+    final controlsOffset = controlsBox?.localToGlobal(Offset.zero);
+    final controlsBottom =
+        (controlsOffset != null && controlsBox != null)
+            ? controlsOffset.dy + controlsBox.size.height
+            : null;
+    final preferredLeft = checkboxOffset?.dx;
+    final preferredRight = searchButtonOffset?.dx;
+    final widthBetween = preferredLeft != null && preferredRight != null
+        ? (preferredRight - preferredLeft - 8)
+        : null;
+    final overlayWidth = (widthBetween != null && widthBetween > 120)
+        ? widthBetween.toDouble()
+        : (fieldWidth < 220 ? fieldWidth : 220).toDouble();
+    final offsetX =
+        (preferredLeft != null && fieldOffset != null)
+            ? (preferredLeft - fieldOffset.dx)
+            : 0.0;
+    final fieldBottom =
+        (fieldOffset?.dy ?? 0) + (renderBox?.size.height ?? 0);
+    final offsetY = () {
+      if (_isCompactLayout) {
+        final anchorBottom =
+            controlsBottom ?? checkboxBottom ?? searchButtonBottom;
+        if (anchorBottom != null) {
+          return anchorBottom - fieldBottom + 8;
+        }
+        return 52.0;
+      }
+      return 8.0;
+    }();
+    final screenHeight = MediaQuery.of(context).size.height;
+    const bottomGap = 64.0;
+    final overlayTop =
+        fieldBottom + offsetY;
+    final availableHeight =
+        (screenHeight - overlayTop - bottomGap).clamp(120.0, screenHeight);
+    const maxListHeight = 260.0;
+    final effectiveMaxHeight =
+        maxListHeight < availableHeight ? maxListHeight : availableHeight;
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: false,
+        child: CompositedTransformFollower(
+          link: _searchFieldLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: Offset(offsetX, offsetY),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: overlayWidth,
+              constraints: BoxConstraints(maxHeight: availableHeight),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: const Color(0xFFE4E7F4)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: _isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        'Loading suggestions...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF6B7280),
+                            ),
+                      ),
+                    )
+                  : suggestions.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Text(
+                            'No results found',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: const Color(0xFF6B7280),
+                                ),
+                          ),
+                        )
+                      : ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxHeight: effectiveMaxHeight),
+                          child: ScrollbarTheme(
+                            data: const ScrollbarThemeData(
+                              thumbVisibility: WidgetStatePropertyAll(true),
+                              trackVisibility: WidgetStatePropertyAll(true),
+                              thickness: WidgetStatePropertyAll(6),
+                              radius: Radius.circular(6),
+                              trackColor:
+                                  WidgetStatePropertyAll(Color(0xFFE5E7EB)),
+                              thumbColor:
+                                  WidgetStatePropertyAll(Color(0xFF9CA3AF)),
+                            ),
+                            child: Scrollbar(
+                              controller: _suggestionsScrollController,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.only(
+                                  right: 8,
+                                  bottom: 8,
+                                ),
+                                shrinkWrap: true,
+                                primary: false,
+                                controller: _suggestionsScrollController,
+                                physics: const ClampingScrollPhysics(),
+                                itemCount: suggestions.length,
+                                itemBuilder: (context, index) {
+                                  final item = suggestions[index];
+                                  return InkWell(
+                                    onTap: () {
+                                      _suggestionTimer?.cancel();
+                                      _controller.text = item.query;
+                                      _controller.selection =
+                                          TextSelection.collapsed(
+                                        offset: item.query.length,
+                                      );
+                                      setState(() {
+                                        _queryText = item.query;
+                                        _suggestions = const [];
+                                        _isLoading = false;
+                                        _suppressSuggestions = true;
+                                      });
+                                      _removeSuggestionsOverlay();
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        10,
+                                        12,
+                                        10,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      const Color(0xFF111827),
+                                                ),
+                                          ),
+                                          if (item.subtitle.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              item.subtitle,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: const Color(
+                                                      0xFF6B7280,
+                                                    ),
+                                                  ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1105,31 +1425,47 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final isCompact = constraints.maxWidth < 760;
-                        final searchField = Row(
-                          children: [
-                            const Icon(
-                              Icons.search_rounded,
-                              color: Color(0xFF98A0B3),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _controller,
-                                autofocus: true,
-                                onSubmitted: (_) => _submit(),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  fillColor: Colors.transparent,
-                                  filled: false,
-                                  hintText:
-                                      'Search by make, model, lot, or VIN',
+                        _isCompactLayout = isCompact;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) {
+                            return;
+                          }
+                          _syncSuggestionsOverlay(
+                            hasQuery: _queryText.trim().isNotEmpty,
+                          );
+                        });
+                        final searchField = CompositedTransformTarget(
+                          link: _searchFieldLink,
+                          child: SizedBox(
+                            key: _searchFieldKey,
+                            height: 44,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.search_rounded,
+                                  color: Color(0xFF98A0B3),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _controller,
+                                    autofocus: true,
+                                    onSubmitted: (_) => _submit(),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      fillColor: Colors.transparent,
+                                      filled: false,
+                                      hintText:
+                                          'Search by make, model, lot, or VIN',
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         );
 
                         final controls = Wrap(
@@ -1139,6 +1475,7 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                           runSpacing: 8,
                           children: [
                             _OverlayCheckbox(
+                              key: _auctionCheckboxKey,
                               label: 'Auction',
                               value: _includeAuction,
                               onChanged: (value) {
@@ -1163,6 +1500,7 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                               },
                             ),
                             FilledButton(
+                              key: _searchButtonKey,
                               onPressed: _submit,
                               style: FilledButton.styleFrom(
                                 backgroundColor: const Color(0xFFE5E8F0),
@@ -1198,50 +1536,56 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
                               const SizedBox(height: 10),
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  crossAxisAlignment:
-                                      WrapCrossAlignment.center,
-                                  children: [
-                                    _OverlayCheckbox(
-                                      label: 'Auction',
-                                      value: _includeAuction,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _includeAuction = value;
-                                          if (value) {
-                                            _includeOther = false;
-                                          }
-                                        });
-                                      },
-                                    ),
-                                    _OverlayCheckbox(
-                                      label: 'Other',
-                                      value: _includeOther,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _includeOther = value;
-                                          if (value) {
-                                            _includeAuction = false;
-                                          }
-                                        });
-                                      },
-                                    ),
-                                    FilledButton(
-                                      onPressed: _submit,
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFFE5E8F0),
-                                        foregroundColor:
-                                            const Color(0xFF666D7C),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(5),
-                                        ),
+                                child: Container(
+                                  key: _controlsRowKey,
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      _OverlayCheckbox(
+                                        key: _auctionCheckboxKey,
+                                        label: 'Auction',
+                                        value: _includeAuction,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _includeAuction = value;
+                                            if (value) {
+                                              _includeOther = false;
+                                            }
+                                          });
+                                        },
                                       ),
-                                      child: const Text('Search'),
-                                    ),
-                                  ],
+                                      _OverlayCheckbox(
+                                        label: 'Other',
+                                        value: _includeOther,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _includeOther = value;
+                                            if (value) {
+                                              _includeAuction = false;
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      FilledButton(
+                                        key: _searchButtonKey,
+                                        onPressed: _submit,
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFFE5E8F0),
+                                          foregroundColor:
+                                              const Color(0xFF666D7C),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                          ),
+                                        ),
+                                        child: const Text('Search'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -1280,6 +1624,7 @@ class _HeaderSearchOverlayState extends State<_HeaderSearchOverlay> {
 
 class _OverlayCheckbox extends StatelessWidget {
   const _OverlayCheckbox({
+    super.key,
     required this.label,
     required this.value,
     required this.onChanged,
@@ -1315,6 +1660,53 @@ class _SearchOverlayResult {
   final String query;
   final bool includeAuction;
   final bool includeOther;
+}
+
+class _HeaderSearchSuggestion {
+  const _HeaderSearchSuggestion({
+    required this.title,
+    required this.subtitle,
+    required this.query,
+  });
+
+  final String title;
+  final String subtitle;
+  final String query;
+
+  static _HeaderSearchSuggestion? fromVehicle(VehicleSummary vehicle) {
+    String cleanId(String value) {
+      final cleaned = value.trim();
+      if (cleaned.isEmpty) {
+        return '';
+      }
+      final upper = cleaned.toUpperCase();
+      if (upper == 'N/A' ||
+          upper == 'NA' ||
+          upper == 'NULL' ||
+          upper == 'NONE' ||
+          cleaned == '0' ||
+          cleaned == '-') {
+        return '';
+      }
+      return cleaned;
+    }
+
+    final vin = cleanId(vehicle.vin);
+    final lot = cleanId(vehicle.lotNumber);
+    if (vin.isEmpty && lot.isEmpty) {
+      return null;
+    }
+    final title = vin.isNotEmpty ? vin : 'Lot $lot';
+    final subtitleParts = <String>[
+      if (vehicle.year != null) vehicle.year.toString(),
+      vehicle.make.trim(),
+      vehicle.model.trim(),
+    ].where((value) => value.isNotEmpty).toList();
+    final subtitle =
+        subtitleParts.isNotEmpty ? subtitleParts.join(' ').toUpperCase() : '';
+    final query = vin.isNotEmpty ? vin : lot;
+    return _HeaderSearchSuggestion(title: title, subtitle: subtitle, query: query);
+  }
 }
 
 class _QuickSearchCard extends StatelessWidget {

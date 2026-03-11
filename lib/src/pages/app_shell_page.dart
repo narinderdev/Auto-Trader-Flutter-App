@@ -317,6 +317,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   final GlobalKey _searchFieldKey = GlobalKey();
   final GlobalKey _auctionCheckboxKey = GlobalKey();
   final GlobalKey _searchButtonKey = GlobalKey();
+  final GlobalKey _controlsRowKey = GlobalKey();
   OverlayEntry? _suggestionsOverlay;
   bool _suppressSuggestions = false;
   bool _auction = true;
@@ -385,10 +386,12 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       if (!mounted || requestId != _requestId) {
         return;
       }
-      final suggestions = response.vehicles.map(_SearchSuggestion.fromVehicle);
+      final suggestions = response.vehicles
+          .map(_SearchSuggestion.fromVehicle)
+          .whereType<_SearchSuggestion>();
       setState(() {
         _isLoading = false;
-        _results = suggestions.toList();
+        _results = suggestions.take(8).toList();
       });
     } catch (_) {
       if (!mounted || requestId != _requestId) {
@@ -447,8 +450,22 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         _auctionCheckboxKey.currentContext?.findRenderObject() as RenderBox?;
     final searchButtonBox =
         _searchButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final controlsBox =
+        _controlsRowKey.currentContext?.findRenderObject() as RenderBox?;
     final checkboxOffset = checkboxBox?.localToGlobal(Offset.zero);
     final searchButtonOffset = searchButtonBox?.localToGlobal(Offset.zero);
+    final checkboxBottom = (checkboxOffset != null && checkboxBox != null)
+        ? checkboxOffset.dy + checkboxBox.size.height
+        : null;
+    final searchButtonBottom =
+        (searchButtonOffset != null && searchButtonBox != null)
+            ? searchButtonOffset.dy + searchButtonBox.size.height
+            : null;
+    final controlsOffset = controlsBox?.localToGlobal(Offset.zero);
+    final controlsBottom =
+        (controlsOffset != null && controlsBox != null)
+            ? controlsOffset.dy + controlsBox.size.height
+            : null;
     final preferredLeft = checkboxOffset?.dx;
     final preferredRight = searchButtonOffset?.dx;
     final widthBetween = preferredLeft != null && preferredRight != null
@@ -463,14 +480,17 @@ class _SearchOverlayState extends State<_SearchOverlay> {
             : 0.0;
     final fieldBottom =
         (fieldOffset?.dy ?? 0) + (renderBox?.size.height ?? 0);
+    final offsetY =
+        controlsBottom != null ? (controlsBottom - fieldBottom + 8) : 8.0;
     final screenHeight = MediaQuery.of(context).size.height;
     const bottomGap = 64.0;
+    final overlayTop =
+        fieldBottom + offsetY;
     final availableHeight =
-        (screenHeight - fieldBottom - bottomGap).clamp(120.0, screenHeight);
-    const itemExtent = 56.0;
-    final listHeight = suggestions.isEmpty
-        ? 48.0
-        : (itemExtent * suggestions.length).clamp(48.0, availableHeight);
+        (screenHeight - overlayTop - bottomGap).clamp(120.0, screenHeight);
+    const maxListHeight = 260.0;
+    final effectiveMaxHeight =
+        maxListHeight < availableHeight ? maxListHeight : availableHeight;
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: false,
@@ -479,11 +499,12 @@ class _SearchOverlayState extends State<_SearchOverlay> {
           showWhenUnlinked: false,
           targetAnchor: Alignment.bottomLeft,
           followerAnchor: Alignment.topLeft,
-          offset: Offset(offsetX, 8),
+          offset: Offset(offsetX, offsetY),
           child: Material(
             color: Colors.transparent,
             child: Container(
               width: overlayWidth,
+              padding: EdgeInsets.zero,
               constraints: BoxConstraints(maxHeight: availableHeight),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -526,8 +547,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                 ),
                           ),
                         )
-                      : SizedBox(
-                          height: listHeight,
+                      : ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxHeight: effectiveMaxHeight),
                           child: ScrollbarTheme(
                             data: const ScrollbarThemeData(
                               thumbVisibility: WidgetStatePropertyAll(true),
@@ -540,16 +562,16 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                   WidgetStatePropertyAll(Color(0xFF9CA3AF)),
                             ),
                             child: Scrollbar(
-                              thumbVisibility: true,
-                              trackVisibility: true,
-                              thickness: 6,
-                              radius: Radius.circular(6),
                               controller: _suggestionsScrollController,
                               child: ListView.builder(
-                                padding: EdgeInsets.zero,
+                                padding: const EdgeInsets.only(
+                                  right: 8,
+                                  bottom: 8,
+                                ),
+                                shrinkWrap: true,
                                 primary: false,
                                 controller: _suggestionsScrollController,
-                                physics: const AlwaysScrollableScrollPhysics(),
+                                physics: const ClampingScrollPhysics(),
                                 itemCount: suggestions.length,
                                 itemBuilder: (context, index) {
                                   final item = suggestions[index];
@@ -699,71 +721,74 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Checkbox(
-                            key: _auctionCheckboxKey,
-                            value: _auction,
-                            onChanged: (value) {
-                              setState(() {
-                                _auction = value ?? false;
-                                if (_auction) {
-                                  _other = false;
+                      Container(
+                        key: _controlsRowKey,
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              key: _auctionCheckboxKey,
+                              value: _auction,
+                              onChanged: (value) {
+                                setState(() {
+                                  _auction = value ?? false;
+                                  if (_auction) {
+                                    _other = false;
+                                  }
+                                });
+                                if (_queryText.trim().isNotEmpty) {
+                                  _loadSuggestions(_queryText.trim());
                                 }
-                              });
-                              if (_queryText.trim().isNotEmpty) {
-                                _loadSuggestions(_queryText.trim());
-                              }
-                            },
-                            activeColor: const Color(0xFFD21D39),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          const Text('Auction'),
-                          const SizedBox(width: 8),
-                          Checkbox(
-                            value: _other,
-                            onChanged: (value) {
-                              setState(() {
-                                _other = value ?? false;
-                                if (_other) {
-                                  _auction = false;
-                                }
-                              });
-                              if (_queryText.trim().isNotEmpty) {
-                                _loadSuggestions(_queryText.trim());
-                              }
-                            },
-                            activeColor: const Color(0xFFD21D39),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          const Text('Other'),
-                          const Spacer(),
-                          FilledButton(
-                            key: _searchButtonKey,
-                            onPressed: hasQuery ? _submitSearch : null,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: hasQuery
-                                  ? const Color(0xFFD21D39)
-                                  : const Color(0xFFE5E7EB),
-                              foregroundColor: hasQuery
-                                  ? Colors.white
-                                  : const Color(0xFF6B7280),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
+                              },
+                              activeColor: const Color(0xFFD21D39),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text('Search'),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: widget.onClose,
-                            icon: const Icon(Icons.close_rounded),
-                            color: const Color(0xFF9CA3AF),
-                          ),
-                        ],
+                            const Text('Auction'),
+                            const SizedBox(width: 8),
+                            Checkbox(
+                              value: _other,
+                              onChanged: (value) {
+                                setState(() {
+                                  _other = value ?? false;
+                                  if (_other) {
+                                    _auction = false;
+                                  }
+                                });
+                                if (_queryText.trim().isNotEmpty) {
+                                  _loadSuggestions(_queryText.trim());
+                                }
+                              },
+                              activeColor: const Color(0xFFD21D39),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            const Text('Other'),
+                            const Spacer(),
+                            FilledButton(
+                              key: _searchButtonKey,
+                              onPressed: hasQuery ? _submitSearch : null,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: hasQuery
+                                    ? const Color(0xFFD21D39)
+                                    : const Color(0xFFE5E7EB),
+                                foregroundColor: hasQuery
+                                    ? Colors.white
+                                    : const Color(0xFF6B7280),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                              child: const Text('Search'),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: widget.onClose,
+                              icon: const Icon(Icons.close_rounded),
+                              color: const Color(0xFF9CA3AF),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -894,19 +919,38 @@ class _SearchSuggestion {
   final String subtitle;
   final String query;
 
-  factory _SearchSuggestion.fromVehicle(VehicleSummary vehicle) {
-    final vin = vehicle.vin.trim();
-    final lot = vehicle.lotNumber.trim();
-    final title =
-        vin.isNotEmpty ? vin : (lot.isNotEmpty ? 'Lot $lot' : vehicle.title);
+  static _SearchSuggestion? fromVehicle(VehicleSummary vehicle) {
+    String cleanId(String value) {
+      final cleaned = value.trim();
+      if (cleaned.isEmpty) {
+        return '';
+      }
+      final upper = cleaned.toUpperCase();
+      if (upper == 'N/A' ||
+          upper == 'NA' ||
+          upper == 'NULL' ||
+          upper == 'NONE' ||
+          cleaned == '0' ||
+          cleaned == '-') {
+        return '';
+      }
+      return cleaned;
+    }
+
+    final vin = cleanId(vehicle.vin);
+    final lot = cleanId(vehicle.lotNumber);
+    if (vin.isEmpty && lot.isEmpty) {
+      return null;
+    }
+    final title = vin.isNotEmpty ? vin : 'Lot $lot';
     final subtitleParts = <String>[
       if (vehicle.year != null) vehicle.year.toString(),
       vehicle.make.trim(),
       vehicle.model.trim(),
     ].where((value) => value.isNotEmpty).toList();
     final subtitle =
-        subtitleParts.isNotEmpty ? subtitleParts.join(' ') : vehicle.title;
-    final query = vin.isNotEmpty ? vin : (lot.isNotEmpty ? lot : vehicle.title);
+        subtitleParts.isNotEmpty ? subtitleParts.join(' ').toUpperCase() : '';
+    final query = vin.isNotEmpty ? vin : lot;
     return _SearchSuggestion(title: title, subtitle: subtitle, query: query);
   }
 }
