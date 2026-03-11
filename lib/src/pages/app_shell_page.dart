@@ -381,18 +381,39 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       final response = await repository.searchVehicles(
         filters,
         page: 1,
-        limit: 20,
+        limit: 50,
       );
       if (!mounted || requestId != _requestId) {
         return;
       }
-      final suggestions = response.vehicles
-          .map(_SearchSuggestion.fromVehicle)
-          .whereType<_SearchSuggestion>();
+      final suggestions = <_SearchSuggestion>[];
+      var generatedCount = 0;
+      for (final vehicle in response.vehicles) {
+        final items = _SearchSuggestion.fromVehicle(vehicle);
+        generatedCount += items.length;
+        for (final item in items) {
+          suggestions.add(item);
+          if (suggestions.length >= 8) {
+            break;
+          }
+        }
+        if (suggestions.length >= 8) {
+          break;
+        }
+      }
       setState(() {
         _isLoading = false;
-        _results = suggestions.take(8).toList();
+        if (suggestions.length > 8) {
+          suggestions.removeRange(8, suggestions.length);
+        }
+        _results = suggestions;
       });
+      debugPrint(
+        'SearchOverlay suggestions: query="$query" '
+        'api=${response.vehicles.length} '
+        'generated=$generatedCount '
+        'shown=${suggestions.length}',
+      );
     } catch (_) {
       if (!mounted || requestId != _requestId) {
         return;
@@ -489,8 +510,12 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     final availableHeight =
         (screenHeight - overlayTop - bottomGap).clamp(120.0, screenHeight);
     const maxListHeight = 260.0;
+    const itemExtent = 56.0;
     final effectiveMaxHeight =
         maxListHeight < availableHeight ? maxListHeight : availableHeight;
+    final listHeight = suggestions.isEmpty
+        ? 48.0
+        : (itemExtent * suggestions.length).clamp(48.0, effectiveMaxHeight);
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: false,
@@ -547,9 +572,8 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                 ),
                           ),
                         )
-                      : ConstrainedBox(
-                          constraints:
-                              BoxConstraints(maxHeight: effectiveMaxHeight),
+                      : SizedBox(
+                          height: listHeight,
                           child: ScrollbarTheme(
                             data: const ScrollbarThemeData(
                               thumbVisibility: WidgetStatePropertyAll(true),
@@ -568,10 +592,9 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                   right: 8,
                                   bottom: 8,
                                 ),
-                                shrinkWrap: true,
                                 primary: false,
                                 controller: _suggestionsScrollController,
-                                physics: const ClampingScrollPhysics(),
+                                physics: const AlwaysScrollableScrollPhysics(),
                                 itemCount: suggestions.length,
                                 itemBuilder: (context, index) {
                                   final item = suggestions[index];
@@ -919,8 +942,8 @@ class _SearchSuggestion {
   final String subtitle;
   final String query;
 
-  static _SearchSuggestion? fromVehicle(VehicleSummary vehicle) {
-    String cleanId(String value) {
+  static List<_SearchSuggestion> fromVehicle(VehicleSummary vehicle) {
+    String cleanText(String value) {
       final cleaned = value.trim();
       if (cleaned.isEmpty) {
         return '';
@@ -937,12 +960,6 @@ class _SearchSuggestion {
       return cleaned;
     }
 
-    final vin = cleanId(vehicle.vin);
-    final lot = cleanId(vehicle.lotNumber);
-    if (vin.isEmpty && lot.isEmpty) {
-      return null;
-    }
-    final title = vin.isNotEmpty ? vin : 'Lot $lot';
     final subtitleParts = <String>[
       if (vehicle.year != null) vehicle.year.toString(),
       vehicle.make.trim(),
@@ -950,8 +967,57 @@ class _SearchSuggestion {
     ].where((value) => value.isNotEmpty).toList();
     final subtitle =
         subtitleParts.isNotEmpty ? subtitleParts.join(' ').toUpperCase() : '';
-    final query = vin.isNotEmpty ? vin : lot;
-    return _SearchSuggestion(title: title, subtitle: subtitle, query: query);
+    final vin = cleanText(vehicle.vin);
+    final lot = cleanText(vehicle.lotNumber);
+    final rawMake = vehicle.make.trim();
+    final rawModel = vehicle.model.trim();
+    var make = cleanText(rawMake);
+    var model = cleanText(rawModel);
+    if (make.isEmpty || model.isEmpty) {
+      final title = vehicle.title.trim();
+      if (title.isNotEmpty) {
+        final parts = title.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+        var start = 0;
+        if (parts.isNotEmpty && RegExp(r'^\d{4}$').hasMatch(parts[0])) {
+          start = 1;
+        }
+        if (make.isEmpty && parts.length > start) {
+          make = cleanText(parts[start]);
+        }
+        if (model.isEmpty && parts.length > start + 1) {
+          model = cleanText(parts.sublist(start + 1).join(' '));
+        }
+      }
+    }
+
+    final suggestions = <_SearchSuggestion>[];
+    void addSuggestion(String title, String query, {String? subtitleText}) {
+      if (title.isEmpty || query.isEmpty) {
+        return;
+      }
+      suggestions.add(
+        _SearchSuggestion(
+          title: title,
+          subtitle: subtitleText ?? '',
+          query: query,
+        ),
+      );
+    }
+
+    if (vin.isNotEmpty) {
+      addSuggestion(vin, vin, subtitleText: subtitle);
+    }
+    if (lot.isNotEmpty) {
+      addSuggestion('Lot $lot', lot, subtitleText: subtitle);
+    }
+    if (make.isNotEmpty) {
+      addSuggestion(make.toUpperCase(), make);
+    }
+    if (model.isNotEmpty) {
+      addSuggestion(model.toUpperCase(), model);
+    }
+
+    return suggestions;
   }
 }
 class _LanguageMenuItem extends StatelessWidget {
