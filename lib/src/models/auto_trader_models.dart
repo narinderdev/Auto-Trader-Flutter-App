@@ -439,7 +439,6 @@ class VehicleSearchFilters {
     final queryValue = query?.trim();
     if (queryValue != null && queryValue.isNotEmpty) {
       final normalizedQuery = _normalizeSearchValue(queryValue);
-      params['search'] = normalizedQuery;
       params['q'] = normalizedQuery;
       final vin = _extractVin(normalizedQuery);
       if (vin != null) {
@@ -756,16 +755,38 @@ class VehicleSummary {
       source['odometer_km'],
       source['odometer_miles'],
     );
-    final lotNumber =
-        _pickString(
+    final documentInfo = source['document_info'];
+    var lotNumber =
+        _firstNonEmptyString([
           source['lot_number'],
           source['lotNumber'],
           source['lot'],
           source['lot_id'],
           source['lotId'],
           source['stock_number'],
-        ) ??
+          source['lot_no'],
+          source['lotNo'],
+          source['lot_number_text'],
+          source['lotNumberText'],
+          source['auction_lot'],
+          source['auctionLot'],
+          source['auction_lot_number'],
+          source['auctionLotNumber'],
+          documentInfo is Map ? documentInfo['lot_number'] : null,
+          documentInfo is Map ? documentInfo['lotNumber'] : null,
+          documentInfo is Map ? documentInfo['lot'] : null,
+          documentInfo is Map ? documentInfo['lot_id'] : null,
+          documentInfo is Map ? documentInfo['lotNo'] : null,
+        ]) ??
         '';
+    if (lotNumber.isEmpty) {
+      lotNumber =
+          _extractLongNumber(
+            documentInfo is Map ? documentInfo['info'] : null,
+          ) ??
+          _extractLongNumber(source['title']) ??
+          '';
+    }
     final vin =
         _pickString(
           source['vin'],
@@ -1911,6 +1932,28 @@ int? _pickInt([
     value8,
   );
   return number?.round();
+}
+
+String? _extractLongNumber(dynamic value) {
+  if (value is num) {
+    final asInt = value.round().toString();
+    return asInt.length >= 5 ? asInt : null;
+  }
+  if (value is String) {
+    final match = RegExp(r'\d{5,}').firstMatch(value);
+    return match?.group(0);
+  }
+  return null;
+}
+
+String? _firstNonEmptyString(Iterable<dynamic> values) {
+  for (final value in values) {
+    final normalized = _normalizeString(value);
+    if (normalized != null) {
+      return normalized;
+    }
+  }
+  return null;
 }
 
 String _combineLocation(dynamic city, dynamic country) {

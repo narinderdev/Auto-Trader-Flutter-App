@@ -295,21 +295,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   }
 
   String _lotSuggestionLabel(VehicleSummary vehicle) {
-    final yearText = vehicle.year == null ? '' : vehicle.year.toString();
-    final titleParts = [
-      yearText,
-      vehicle.make,
-      vehicle.model,
-    ].where((value) => value.trim().isNotEmpty).join(' ');
-    if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
-      return '${vehicle.lotNumber} - ${titleParts.toUpperCase()}';
-    }
-    if (vehicle.lotNumber.isNotEmpty) {
-      return vehicle.lotNumber;
-    }
-    final fallback =
-        titleParts.isNotEmpty ? titleParts : vehicle.title.trim();
-    return fallback.isNotEmpty ? fallback.toUpperCase() : fallback;
+    return _buildLotDisplayLabel(vehicle);
   }
 
   String _lotSuggestionLocation(VehicleSummary vehicle) {
@@ -868,22 +854,63 @@ class _LotSuggestionsList extends StatelessWidget {
   }
 
   String _lotSuggestionText(VehicleSummary vehicle) {
-    final yearText = vehicle.year == null ? '' : vehicle.year.toString();
-    final titleParts = [
-      yearText,
-      vehicle.make,
-      vehicle.model,
-    ].where((value) => value.trim().isNotEmpty).join(' ');
-    if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
-      return '${vehicle.lotNumber} - ${titleParts.toUpperCase()}';
-    }
-    if (vehicle.lotNumber.isNotEmpty) {
-      return vehicle.lotNumber;
-    }
-    final fallback =
-        titleParts.isNotEmpty ? titleParts : vehicle.title.trim();
-    return fallback.isNotEmpty ? fallback.toUpperCase() : fallback;
+    return _buildLotDisplayLabel(vehicle);
   }
+}
+
+String _buildLotDisplayLabel(VehicleSummary vehicle) {
+  final title = vehicle.title.trim();
+  final lotNumber = _resolveLotNumber(vehicle);
+  if (_looksLikeLotTitle(title)) {
+    return title.toUpperCase();
+  }
+  final yearText = vehicle.year == null ? '' : vehicle.year.toString();
+  final titleParts = [
+    yearText,
+    vehicle.make,
+    vehicle.model,
+  ].where((value) => value.trim().isNotEmpty).join(' ');
+  final fallback = titleParts.isNotEmpty ? titleParts : title;
+  if (lotNumber != null && fallback.isNotEmpty) {
+    return '$lotNumber - ${fallback.toUpperCase()}';
+  }
+  if (lotNumber != null) {
+    return lotNumber;
+  }
+  return fallback.isNotEmpty ? fallback.toUpperCase() : fallback;
+}
+
+bool _looksLikeLotTitle(String title) {
+  return RegExp(r'^\d{5,}\s*-\s*').hasMatch(title);
+}
+
+String? _resolveLotNumber(VehicleSummary vehicle) {
+  final lot = vehicle.lotNumber.trim();
+  if (lot.isNotEmpty) {
+    return lot;
+  }
+  final title = vehicle.title;
+  for (final match in RegExp(r'\d{5,}').allMatches(title)) {
+    final candidate = match.group(0);
+    if (candidate == null) {
+      continue;
+    }
+    if (!_looksLikeYear(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+bool _looksLikeYear(String value) {
+  if (value.length != 4) {
+    return false;
+  }
+  final year = int.tryParse(value);
+  if (year == null) {
+    return false;
+  }
+  return year >= 1900 && year <= 2099;
 }
 
 class CalculatorFieldLabel extends StatelessWidget {
