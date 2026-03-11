@@ -312,6 +312,9 @@ class _SearchOverlay extends StatefulWidget {
 
 class _SearchOverlayState extends State<_SearchOverlay> {
   final TextEditingController _queryController = TextEditingController();
+  final ScrollController _suggestionsScrollController = ScrollController();
+  final LayerLink _searchFieldLink = LayerLink();
+  OverlayEntry? _suggestionsOverlay;
   bool _auction = true;
   bool _other = false;
   String _queryText = '';
@@ -331,6 +334,8 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     _suggestionTimer?.cancel();
     _queryController.removeListener(_handleQueryChanged);
     _queryController.dispose();
+    _suggestionsScrollController.dispose();
+    _removeSuggestionsOverlay();
     super.dispose();
   }
 
@@ -370,7 +375,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       final response = await repository.searchVehicles(
         filters,
         page: 1,
-        limit: 5,
+        limit: 20,
       );
       if (!mounted || requestId != _requestId) {
         return;
@@ -400,10 +405,186 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     widget.onSubmit(filters);
   }
 
+  void _removeSuggestionsOverlay() {
+    _suggestionsOverlay?.remove();
+    _suggestionsOverlay = null;
+  }
+
+  void _syncSuggestionsOverlay({required bool hasQuery}) {
+    if (!mounted) {
+      return;
+    }
+    if (!hasQuery) {
+      _removeSuggestionsOverlay();
+      return;
+    }
+    if (_suggestionsOverlay == null) {
+      _suggestionsOverlay = OverlayEntry(
+        builder: (context) => _buildSuggestionsOverlay(context),
+      );
+      Overlay.of(context, rootOverlay: true).insert(_suggestionsOverlay!);
+    } else {
+      _suggestionsOverlay!.markNeedsBuild();
+    }
+  }
+
+  Widget _buildSuggestionsOverlay(BuildContext context) {
+    final suggestions = _results;
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: false,
+        child: CompositedTransformFollower(
+          link: _searchFieldLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomLeft,
+          followerAnchor: Alignment.topLeft,
+          offset: const Offset(0, 8),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 240,
+              constraints: const BoxConstraints(maxHeight: 220),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: const Color(0xFFE4E7F4)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: _isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        'Loading suggestions...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF6B7280),
+                            ),
+                      ),
+                    )
+                  : suggestions.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Text(
+                            'No results found',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: const Color(0xFF6B7280),
+                                ),
+                          ),
+                        )
+                      : SizedBox(
+                          height: 220,
+                          child: ScrollbarTheme(
+                            data: const ScrollbarThemeData(
+                              thumbVisibility: WidgetStatePropertyAll(true),
+                              trackVisibility: WidgetStatePropertyAll(true),
+                              thickness: WidgetStatePropertyAll(6),
+                              radius: Radius.circular(6),
+                              trackColor:
+                                  WidgetStatePropertyAll(Color(0xFFE5E7EB)),
+                              thumbColor:
+                                  WidgetStatePropertyAll(Color(0xFF9CA3AF)),
+                            ),
+                            child: Scrollbar(
+                              thumbVisibility: true,
+                              trackVisibility: true,
+                              thickness: 6,
+                              radius: Radius.circular(6),
+                              controller: _suggestionsScrollController,
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                primary: false,
+                                controller: _suggestionsScrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                itemCount: suggestions.length,
+                                itemBuilder: (context, index) {
+                                  final item = suggestions[index];
+                                  return InkWell(
+                                    onTap: () {
+                                      _queryController.text = item.query;
+                                      _queryController.selection =
+                                          TextSelection.collapsed(
+                                        offset: item.query.length,
+                                      );
+                                      _submitSearch(
+                                        overrideQuery: item.query,
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        10,
+                                        12,
+                                        10,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      const Color(0xFF111827),
+                                                ),
+                                          ),
+                                          if (item.subtitle.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              item.subtitle,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: const Color(
+                                                      0xFF6B7280,
+                                                    ),
+                                                  ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasQuery = _queryText.trim().isNotEmpty;
     final suggestions = _results;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _syncSuggestionsOverlay(hasQuery: hasQuery);
+    });
 
     return SafeArea(
       child: Material(
@@ -428,252 +609,102 @@ class _SearchOverlayState extends State<_SearchOverlay> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            height: 40,
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.search,
-                                  color: Color(0xFF9CA3AF),
-                                ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _queryController,
-                                    decoration: const InputDecoration(
-                                      hintText:
-                                          'Search by make, model, lot, or VIN',
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      isDense: true,
-                                    ),
-                                    onSubmitted: (_) => _submitSearch(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
+                      CompositedTransformTarget(
+                        link: _searchFieldLink,
+                        child: SizedBox(
+                          height: 40,
+                          child: Row(
                             children: [
-                              Checkbox(
-                                value: _auction,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _auction = value ?? false;
-                                    if (_auction) {
-                                      _other = false;
-                                    }
-                                  });
-                                  if (_queryText.trim().isNotEmpty) {
-                                    _loadSuggestions(_queryText.trim());
-                                  }
-                                },
-                                activeColor: const Color(0xFFD21D39),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                              const Icon(
+                                Icons.search,
+                                color: Color(0xFF9CA3AF),
                               ),
-                              const Text('Auction'),
-                              const SizedBox(width: 8),
-                              Checkbox(
-                                value: _other,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _other = value ?? false;
-                                    if (_other) {
-                                      _auction = false;
-                                    }
-                                  });
-                                  if (_queryText.trim().isNotEmpty) {
-                                    _loadSuggestions(_queryText.trim());
-                                  }
-                                },
-                                activeColor: const Color(0xFFD21D39),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              const Text('Other'),
-                              const Spacer(),
-                              FilledButton(
-                                onPressed: hasQuery ? _submitSearch : null,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: hasQuery
-                                      ? const Color(0xFFD21D39)
-                                      : const Color(0xFFE5E7EB),
-                                  foregroundColor: hasQuery
-                                      ? Colors.white
-                                      : const Color(0xFF6B7280),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
+                              Expanded(
+                                child: TextField(
+                                  controller: _queryController,
+                                  decoration: const InputDecoration(
+                                    hintText:
+                                        'Search by make, model, lot, or VIN',
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    isDense: true,
                                   ),
+                                  onSubmitted: (_) => _submitSearch(),
                                 ),
-                                child: const Text('Search'),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                onPressed: widget.onClose,
-                                icon: const Icon(Icons.close_rounded),
-                                color: const Color(0xFF9CA3AF),
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _auction,
+                            onChanged: (value) {
+                              setState(() {
+                                _auction = value ?? false;
+                                if (_auction) {
+                                  _other = false;
+                                }
+                              });
+                              if (_queryText.trim().isNotEmpty) {
+                                _loadSuggestions(_queryText.trim());
+                              }
+                            },
+                            activeColor: const Color(0xFFD21D39),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          const Text('Auction'),
+                          const SizedBox(width: 8),
+                          Checkbox(
+                            value: _other,
+                            onChanged: (value) {
+                              setState(() {
+                                _other = value ?? false;
+                                if (_other) {
+                                  _auction = false;
+                                }
+                              });
+                              if (_queryText.trim().isNotEmpty) {
+                                _loadSuggestions(_queryText.trim());
+                              }
+                            },
+                            activeColor: const Color(0xFFD21D39),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          const Text('Other'),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: hasQuery ? _submitSearch : null,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: hasQuery
+                                  ? const Color(0xFFD21D39)
+                                  : const Color(0xFFE5E7EB),
+                              foregroundColor: hasQuery
+                                  ? Colors.white
+                                  : const Color(0xFF6B7280),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: const Text('Search'),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: widget.onClose,
+                            icon: const Icon(Icons.close_rounded),
+                            color: const Color(0xFF9CA3AF),
+                          ),
                         ],
                       ),
-                      if (hasQuery)
-                        Positioned(
-                          left: 0,
-                          top: 44,
-                          child: Container(
-                            width: 240,
-                            constraints: const BoxConstraints(maxHeight: 220),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(color: const Color(0xFFE4E7F4)),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x1A000000),
-                                  blurRadius: 12,
-                                  offset: Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: _isLoading
-                                ? Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    child: Text(
-                                      'Loading suggestions...',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: const Color(0xFF6B7280),
-                                          ),
-                                    ),
-                                  )
-                                : suggestions.isEmpty
-                                    ? Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        child: Text(
-                                          'No results found',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color:
-                                                    const Color(0xFF6B7280),
-                                              ),
-                                        ),
-                                      )
-                                    : ScrollbarTheme(
-                                        data: const ScrollbarThemeData(
-                                          thumbVisibility:
-                                              WidgetStatePropertyAll(true),
-                                          trackVisibility:
-                                              WidgetStatePropertyAll(true),
-                                          thickness: WidgetStatePropertyAll(6),
-                                          radius: Radius.circular(6),
-                                          trackColor: WidgetStatePropertyAll(
-                                            Color(0xFFE5E7EB),
-                                          ),
-                                          thumbColor: WidgetStatePropertyAll(
-                                            Color(0xFF9CA3AF),
-                                          ),
-                                        ),
-                                        child: Scrollbar(
-                                          thumbVisibility: true,
-                                          trackVisibility: true,
-                                          thickness: 6,
-                                          radius: Radius.circular(6),
-                                          child: ListView.builder(
-                                            padding: EdgeInsets.zero,
-                                            primary: false,
-                                            physics:
-                                                const ClampingScrollPhysics(),
-                                            itemCount: suggestions.length,
-                                            itemBuilder: (context, index) {
-                                              final item = suggestions[index];
-                                              return InkWell(
-                                                onTap: () {
-                                                  _queryController.text =
-                                                      item.query;
-                                                  _queryController.selection =
-                                                      TextSelection.collapsed(
-                                                    offset: item.query.length,
-                                                  );
-                                                  _submitSearch(
-                                                    overrideQuery: item.query,
-                                                  );
-                                                },
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.fromLTRB(
-                                                    12,
-                                                    10,
-                                                    12,
-                                                    10,
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        item.title,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color:
-                                                                  const Color(
-                                                                0xFF111827,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      if (item.subtitle
-                                                          .isNotEmpty) ...[
-                                                        const SizedBox(
-                                                          height: 2,
-                                                        ),
-                                                        Text(
-                                                          item.subtitle,
-                                                          style: Theme.of(context)
-                                                              .textTheme
-                                                              .bodySmall
-                                                              ?.copyWith(
-                                                                color:
-                                                                    const Color(
-                                                                  0xFF6B7280,
-                                                                ),
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                          ),
-                        ),
                     ],
                   ),
                 ],
