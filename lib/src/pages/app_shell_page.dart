@@ -322,6 +322,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   bool _suppressSuggestions = false;
   bool _auction = true;
   bool _other = false;
+  bool _isSubmitting = false;
   String _queryText = '';
   bool _isLoading = false;
   List<_SearchSuggestion> _results = const [];
@@ -426,10 +427,16 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   }
 
   void _submitSearch({String? overrideQuery}) {
+    if (_isSubmitting) {
+      return;
+    }
     final rawQuery = (overrideQuery ?? _queryText).trim();
     if (rawQuery.isEmpty) {
       return;
     }
+    setState(() {
+      _isSubmitting = true;
+    });
     final filters = VehicleSearchFilters(query: rawQuery);
     widget.onSubmit(filters);
   }
@@ -509,13 +516,13 @@ class _SearchOverlayState extends State<_SearchOverlay> {
         fieldBottom + offsetY;
     final availableHeight =
         (screenHeight - overlayTop - bottomGap).clamp(120.0, screenHeight);
-    const maxListHeight = 260.0;
     const itemExtent = 56.0;
+    final maxListHeight = (itemExtent * 8) + 8;
     final effectiveMaxHeight =
         maxListHeight < availableHeight ? maxListHeight : availableHeight;
     final listHeight = suggestions.isEmpty
         ? 48.0
-        : (itemExtent * suggestions.length).clamp(48.0, effectiveMaxHeight);
+        : (itemExtent * suggestions.length + 8).clamp(48.0, effectiveMaxHeight);
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: false,
@@ -598,9 +605,16 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                 itemCount: suggestions.length,
                                 itemBuilder: (context, index) {
                                   final item = suggestions[index];
+                                  final isPrimary =
+                                      item.type == _SearchSuggestionType.vin ||
+                                          item.type ==
+                                              _SearchSuggestionType.lot;
                                   return InkWell(
                                     onTap: () {
                                       _suggestionTimer?.cancel();
+                                      if (_isSubmitting) {
+                                        return;
+                                      }
                                       _queryController.text = item.query;
                                       _queryController.selection =
                                           TextSelection.collapsed(
@@ -613,13 +627,14 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                         _suppressSuggestions = true;
                                       });
                                       _removeSuggestionsOverlay();
+                                      _submitSearch(overrideQuery: item.query);
                                     },
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         12,
-                                        10,
+                                        8,
                                         12,
-                                        10,
+                                        8,
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -631,12 +646,16 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                                 .textTheme
                                                 .bodyMedium
                                                 ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
+                                                  fontWeight: isPrimary
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w500,
+                                                  fontSize: isPrimary ? 14 : 13,
                                                   color:
                                                       const Color(0xFF111827),
                                                 ),
                                           ),
-                                          if (item.subtitle.isNotEmpty) ...[
+                                          if (isPrimary &&
+                                              item.subtitle.isNotEmpty) ...[
                                             const SizedBox(height: 2),
                                             Text(
                                               item.subtitle,
@@ -787,13 +806,14 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             ),
                             const Text('Other'),
                             const Spacer(),
-                            FilledButton(
-                              key: _searchButtonKey,
-                              onPressed: hasQuery ? _submitSearch : null,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: hasQuery
-                                    ? const Color(0xFFD21D39)
-                                    : const Color(0xFFE5E7EB),
+                          FilledButton(
+                            key: _searchButtonKey,
+                            onPressed:
+                                (hasQuery && !_isSubmitting) ? _submitSearch : null,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: hasQuery
+                                  ? const Color(0xFFD21D39)
+                                  : const Color(0xFFE5E7EB),
                                 foregroundColor: hasQuery
                                     ? Colors.white
                                     : const Color(0xFF6B7280),
@@ -802,8 +822,17 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                   vertical: 8,
                                 ),
                               ),
-                              child: const Text('Search'),
-                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Search'),
+                          ),
                             const SizedBox(width: 8),
                             IconButton(
                               onPressed: widget.onClose,
@@ -931,16 +960,20 @@ class _BottomNavBar extends StatelessWidget {
   }
 }
 
+enum _SearchSuggestionType { vin, lot, make, model }
+
 class _SearchSuggestion {
   const _SearchSuggestion({
     required this.title,
     required this.subtitle,
     required this.query,
+    required this.type,
   });
 
   final String title;
   final String subtitle;
   final String query;
+  final _SearchSuggestionType type;
 
   static List<_SearchSuggestion> fromVehicle(VehicleSummary vehicle) {
     String cleanText(String value) {
@@ -991,7 +1024,12 @@ class _SearchSuggestion {
     }
 
     final suggestions = <_SearchSuggestion>[];
-    void addSuggestion(String title, String query, {String? subtitleText}) {
+    void addSuggestion(
+      String title,
+      String query, {
+      String? subtitleText,
+      required _SearchSuggestionType type,
+    }) {
       if (title.isEmpty || query.isEmpty) {
         return;
       }
@@ -1000,21 +1038,40 @@ class _SearchSuggestion {
           title: title,
           subtitle: subtitleText ?? '',
           query: query,
+          type: type,
         ),
       );
     }
 
     if (vin.isNotEmpty) {
-      addSuggestion(vin, vin, subtitleText: subtitle);
+      addSuggestion(
+        vin,
+        vin,
+        subtitleText: subtitle,
+        type: _SearchSuggestionType.vin,
+      );
     }
     if (lot.isNotEmpty) {
-      addSuggestion('Lot $lot', lot, subtitleText: subtitle);
+      addSuggestion(
+        'Lot $lot',
+        lot,
+        subtitleText: subtitle,
+        type: _SearchSuggestionType.lot,
+      );
     }
     if (make.isNotEmpty) {
-      addSuggestion(make.toUpperCase(), make);
+      addSuggestion(
+        make.toUpperCase(),
+        make,
+        type: _SearchSuggestionType.make,
+      );
     }
     if (model.isNotEmpty) {
-      addSuggestion(model.toUpperCase(), model);
+      addSuggestion(
+        model.toUpperCase(),
+        model,
+        type: _SearchSuggestionType.model,
+      );
     }
 
     return suggestions;
