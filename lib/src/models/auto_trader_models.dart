@@ -856,12 +856,21 @@ class VehicleSummary {
         ) ??
         '';
     final location =
-        _pickString(
+        _firstNonEmptyString([
           source['location'],
+          _combineStateCity(source['state'], source['city']),
+          _combineStateCity(source['state_code'], source['city']),
+          _combineStateCity(source['stateCode'], source['city']),
+          _combineStateCity(source['offsite_state'], source['offsite_city']),
+          _combineStateCity(source['offsiteState'], source['offsiteCity']),
+          _combineStateCity(source['state'], source['offsite_city']),
+          _combineStateCity(source['state_code'], source['offsite_city']),
+          _combineStateCity(source['stateCode'], source['offsiteCity']),
           _combineLocation(source['city'], source['country']),
+          source['offsite_location'],
           source['country_name'],
           source['countryName'],
-        ) ??
+        ]) ??
         '';
     final country =
         _pickString(
@@ -1965,9 +1974,21 @@ String _combineLocation(dynamic city, dynamic country) {
   return cityText ?? countryText ?? '';
 }
 
+String _combineStateCity(dynamic state, dynamic city) {
+  final stateText = _normalizeString(state);
+  final cityText = _normalizeString(city);
+  if (stateText != null && cityText != null) {
+    return '$stateText - $cityText';
+  }
+  return stateText ?? cityText ?? '';
+}
+
 String _extractCountry(String location) {
   if (location.isEmpty) {
     return '';
+  }
+  if (!location.contains(',')) {
+    return location.contains('-') ? '' : location.trim();
   }
   final parts = location.split(',');
   return parts.last.trim();
