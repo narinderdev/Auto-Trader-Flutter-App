@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'customs_calculator_page.dart';
+import '../models/auto_trader_models.dart';
+import '../repositories/auto_trader_repository.dart';
 
 class AuctionCalculatorPage extends StatefulWidget {
   const AuctionCalculatorPage({super.key, this.embedded = false});
@@ -25,6 +30,12 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   final TextEditingController _lotNumberController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _bidAmountController = TextEditingController();
+  final FocusNode _lotNumberFocusNode = FocusNode();
+
+  Timer? _lotSearchDebounce;
+  List<VehicleSummary> _lotSuggestions = [];
+  bool _isFetchingLots = false;
+  bool _isSelectingLot = false;
 
   String _auctionCompany = _auctionCompanies.first;
   String _vehicleType = _vehicleTypes.first;
@@ -37,8 +48,17 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   bool _showErrors = false;
 
   @override
+  void initState() {
+    super.initState();
+    _lotNumberController.addListener(_onLotQueryChanged);
+  }
+
+  @override
   void dispose() {
+    _lotSearchDebounce?.cancel();
+    _lotNumberController.removeListener(_onLotQueryChanged);
     _lotNumberController.dispose();
+    _lotNumberFocusNode.dispose();
     _locationController.dispose();
     _bidAmountController.dispose();
     super.dispose();
@@ -103,6 +123,11 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
                 vehicleType: _vehicleType,
                 destination: _destination,
                 lotNumberController: _lotNumberController,
+                lotNumberFocusNode: _lotNumberFocusNode,
+                lotSuggestions: _lotSuggestions,
+                isLotLoading: _isFetchingLots,
+                lotHintText: _lotHintText(),
+                onLotSelected: _selectLotSuggestion,
                 locationController: _locationController,
                 bidAmountController: _bidAmountController,
                 showErrors: _showErrors,
@@ -180,6 +205,119 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
     );
   }
 
+  void _onLotQueryChanged() {
+    if (_isSelectingLot) {
+      return;
+    }
+    final query = _lotNumberController.text.trim();
+    _lotSearchDebounce?.cancel();
+
+    if (query.isEmpty || query.length < 3) {
+      if (_lotSuggestions.isNotEmpty || _isFetchingLots) {
+        setState(() {
+          _lotSuggestions = [];
+          _isFetchingLots = false;
+        });
+      } else {
+        setState(() {});
+      }
+      return;
+    }
+
+    _lotSearchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchLotSuggestions(query);
+    });
+  }
+
+  String? _lotHintText() {
+    final query = _lotNumberController.text.trim();
+    if (query.isEmpty) {
+      return null;
+    }
+    if (query.length < 3) {
+      return 'Please enter at least 3 digits to see suggestions.';
+    }
+    return null;
+  }
+
+  Future<void> _fetchLotSuggestions(String query) async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isFetchingLots = true;
+    });
+
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final response = await repository.searchVehiclesByQuery(
+        query,
+        page: 1,
+        limit: 6,
+      );
+      if (!mounted) {
+        return;
+      }
+      final currentQuery = _lotNumberController.text.trim();
+      if (currentQuery != query) {
+        return;
+      }
+      setState(() {
+        _lotSuggestions = response.vehicles;
+        _isFetchingLots = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lotSuggestions = [];
+        _isFetchingLots = false;
+      });
+    }
+  }
+
+  void _selectLotSuggestion(VehicleSummary vehicle) {
+    final lotLabel = _lotSuggestionLabel(vehicle);
+    final location = _lotSuggestionLocation(vehicle);
+    _isSelectingLot = true;
+    _lotNumberController.text = lotLabel;
+    _lotNumberController.selection = TextSelection.collapsed(
+      offset: _lotNumberController.text.length,
+    );
+    if (location.isNotEmpty) {
+      _locationController.text = location;
+    }
+    setState(() {
+      _lotSuggestions = [];
+    });
+    _isSelectingLot = false;
+  }
+
+  String _lotSuggestionLabel(VehicleSummary vehicle) {
+    final yearText = vehicle.year == null ? '' : vehicle.year.toString();
+    final titleParts = [
+      yearText,
+      vehicle.make,
+      vehicle.model,
+    ].where((value) => value.trim().isNotEmpty).join(' ');
+    if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
+      return '${vehicle.lotNumber} - $titleParts';
+    }
+    if (vehicle.lotNumber.isNotEmpty) {
+      return vehicle.lotNumber;
+    }
+    return titleParts.isNotEmpty ? titleParts : vehicle.title;
+  }
+
+  String _lotSuggestionLocation(VehicleSummary vehicle) {
+    final location = vehicle.location.trim();
+    if (location.isNotEmpty) {
+      return location;
+    }
+    return vehicle.country.trim();
+  }
+
   void _calculate() {
     final bid = double.tryParse(_bidAmountController.text.trim());
     final locationMissing = _locationController.text.trim().isEmpty;
@@ -235,6 +373,8 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       _lotNumberController.clear();
       _locationController.clear();
       _bidAmountController.clear();
+      _lotSuggestions = [];
+      _isFetchingLots = false;
       _bid = 0;
       _auctionFee = 0;
       _shippingFee = 0;
@@ -360,6 +500,11 @@ class _AuctionCalculatorForm extends StatelessWidget {
     required this.vehicleType,
     required this.destination,
     required this.lotNumberController,
+    required this.lotNumberFocusNode,
+    required this.lotSuggestions,
+    required this.isLotLoading,
+    required this.lotHintText,
+    required this.onLotSelected,
     required this.locationController,
     required this.bidAmountController,
     required this.showErrors,
@@ -377,6 +522,11 @@ class _AuctionCalculatorForm extends StatelessWidget {
   final String vehicleType;
   final String destination;
   final TextEditingController lotNumberController;
+  final FocusNode lotNumberFocusNode;
+  final List<VehicleSummary> lotSuggestions;
+  final bool isLotLoading;
+  final String? lotHintText;
+  final ValueChanged<VehicleSummary> onLotSelected;
   final TextEditingController locationController;
   final TextEditingController bidAmountController;
   final bool showErrors;
@@ -428,8 +578,38 @@ class _AuctionCalculatorForm extends StatelessWidget {
           const SizedBox(height: 8),
           TextField(
             controller: lotNumberController,
-            decoration: const InputDecoration(hintText: 'Lot #'),
+            focusNode: lotNumberFocusNode,
+            decoration: InputDecoration(
+              hintText: 'Lot #',
+              errorText: lotHintText,
+            ),
           ),
+          if (isLotLoading) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Searching lots...',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF6B7280),
+                      ),
+                ),
+              ],
+            ),
+          ],
+          if (lotSuggestions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _LotSuggestionsList(
+              suggestions: lotSuggestions,
+              onSelected: onLotSelected,
+            ),
+          ],
           const SizedBox(height: 16),
           const CalculatorFieldLabel('Vehicle Type *'),
           const SizedBox(height: 8),
@@ -633,6 +813,78 @@ class _AuctionResultCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _LotSuggestionsList extends StatelessWidget {
+  const _LotSuggestionsList({
+    required this.suggestions,
+    required this.onSelected,
+  });
+
+  final List<VehicleSummary> suggestions;
+  final ValueChanged<VehicleSummary> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFDDE3EE)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A1F2937),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 220),
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          itemCount: suggestions.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final suggestion = suggestions[index];
+            return InkWell(
+              onTap: () => onSelected(suggestion),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Text(
+                  _lotSuggestionText(suggestion),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF353B48),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  String _lotSuggestionText(VehicleSummary vehicle) {
+    final yearText = vehicle.year == null ? '' : vehicle.year.toString();
+    final titleParts = [
+      yearText,
+      vehicle.make,
+      vehicle.model,
+    ].where((value) => value.trim().isNotEmpty).join(' ');
+    if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
+      return '${vehicle.lotNumber} - $titleParts';
+    }
+    if (vehicle.lotNumber.isNotEmpty) {
+      return vehicle.lotNumber;
+    }
+    return titleParts.isNotEmpty ? titleParts : vehicle.title;
   }
 }
 

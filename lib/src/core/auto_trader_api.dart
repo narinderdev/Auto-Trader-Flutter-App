@@ -84,6 +84,34 @@ class AutoTraderApi {
     );
   }
 
+  Future<SearchResponse> searchVehiclesByQuery(
+    String queryText, {
+    required int page,
+    int limit = 10,
+  }) async {
+    final query = <String, String>{
+      'q': queryText,
+      'page': '$page',
+      'limit': '$limit',
+    };
+
+    if (kDebugMode) {
+      debugPrint('Search query params: $query');
+      debugPrint('Search uri: ${_buildUri('/metadata/vehicles', query: query)}');
+    }
+
+    final payload = await _getJson('/metadata/vehicles', query: query);
+    final vehicles = _extractVehicleList(payload);
+    final meta = _extractPaginationMeta(payload);
+
+    return SearchResponse(
+      vehicles: vehicles,
+      page: meta.page ?? page,
+      limit: meta.limit ?? limit,
+      total: meta.total,
+    );
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,
@@ -139,6 +167,7 @@ class AutoTraderApi {
       payload,
       if (payload is Map) payload['results'],
       if (payload is Map) payload['data'],
+      if (payload is Map && payload['data'] is Map) payload['data']['items'],
       if (payload is Map && payload['data'] is Map) payload['data']['results'],
       if (payload is Map && payload['data'] is Map) payload['data']['data'],
       if (payload is Map) payload['items'],

@@ -90,6 +90,14 @@ class AutoTraderRepository {
     return _api.searchVehicles(filters, page: page, limit: limit);
   }
 
+  Future<SearchResponse> searchVehiclesByQuery(
+    String queryText, {
+    required int page,
+    int limit = 10,
+  }) {
+    return _api.searchVehiclesByQuery(queryText, page: page, limit: limit);
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,
