@@ -302,12 +302,14 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       vehicle.model,
     ].where((value) => value.trim().isNotEmpty).join(' ');
     if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
-      return '${vehicle.lotNumber} - $titleParts';
+      return '${vehicle.lotNumber} - ${titleParts.toUpperCase()}';
     }
     if (vehicle.lotNumber.isNotEmpty) {
       return vehicle.lotNumber;
     }
-    return titleParts.isNotEmpty ? titleParts : vehicle.title;
+    final fallback =
+        titleParts.isNotEmpty ? titleParts : vehicle.title.trim();
+    return fallback.isNotEmpty ? fallback.toUpperCase() : fallback;
   }
 
   String _lotSuggestionLocation(VehicleSummary vehicle) {
@@ -830,15 +832,8 @@ class _LotSuggestionsList extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFDDE3EE)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A1F2937),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 220),
@@ -854,13 +849,14 @@ class _LotSuggestionsList extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 10,
+                  vertical: 8,
                 ),
                 child: Text(
                   _lotSuggestionText(suggestion),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF353B48),
-                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF2E3440),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
                       ),
                 ),
               ),
@@ -879,12 +875,14 @@ class _LotSuggestionsList extends StatelessWidget {
       vehicle.model,
     ].where((value) => value.trim().isNotEmpty).join(' ');
     if (vehicle.lotNumber.isNotEmpty && titleParts.isNotEmpty) {
-      return '${vehicle.lotNumber} - $titleParts';
+      return '${vehicle.lotNumber} - ${titleParts.toUpperCase()}';
     }
     if (vehicle.lotNumber.isNotEmpty) {
       return vehicle.lotNumber;
     }
-    return titleParts.isNotEmpty ? titleParts : vehicle.title;
+    final fallback =
+        titleParts.isNotEmpty ? titleParts : vehicle.title.trim();
+    return fallback.isNotEmpty ? fallback.toUpperCase() : fallback;
   }
 }
 
