@@ -36,6 +36,9 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   List<VehicleSummary> _lotSuggestions = [];
   bool _isFetchingLots = false;
   bool _isSelectingLot = false;
+  bool _locationLocked = false;
+  bool _vehicleTypeLocked = false;
+  int _lotDetailsRequestId = 0;
 
   String _auctionCompany = _auctionCompanies.first;
   String _vehicleType = _vehicleTypes.first;
@@ -45,6 +48,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   double _shippingFee = 0;
   double _deliveryCost = 0;
   double _finalPrice = 0;
+  bool _hasCalculated = false;
   bool _showErrors = false;
 
   @override
@@ -129,6 +133,8 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
                 lotHintText: _lotHintText(),
                 onLotSelected: _selectLotSuggestion,
                 locationController: _locationController,
+                locationReadOnly: _locationLocked,
+                vehicleTypeReadOnly: _vehicleTypeLocked,
                 bidAmountController: _bidAmountController,
                 showErrors: _showErrors,
                 locationInvalid: locationMissing,
@@ -162,20 +168,24 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
                 onClear: _clear,
               );
 
-              final result = _AuctionResultCard(
-                bid: _bid,
-                auctionFee: _auctionFee,
-                shippingFee: _shippingFee,
-                deliveryCost: _deliveryCost,
-                finalPrice: _finalPrice,
-              );
+              final result = _hasCalculated
+                  ? _AuctionResultCard(
+                      bid: _bid,
+                      auctionFee: _auctionFee,
+                      shippingFee: _shippingFee,
+                      deliveryCost: _deliveryCost,
+                      finalPrice: _finalPrice,
+                    )
+                  : const SizedBox.shrink();
 
               if (constraints.maxWidth < 900) {
                 return Column(
                   children: [
                     form,
-                    const SizedBox(height: 16),
-                    result,
+                    if (_hasCalculated) ...[
+                      const SizedBox(height: 16),
+                      result,
+                    ],
                   ],
                 );
               }
@@ -184,8 +194,10 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: form),
-                  const SizedBox(width: 22),
-                  Expanded(child: result),
+                  if (_hasCalculated) ...[
+                    const SizedBox(width: 22),
+                    Expanded(child: result),
+                  ],
                 ],
               );
             },
@@ -208,6 +220,17 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   void _onLotQueryChanged() {
     if (_isSelectingLot) {
       return;
+    }
+    _lotDetailsRequestId += 1;
+    if (_locationLocked) {
+      setState(() {
+        _locationLocked = false;
+      });
+    }
+    if (_vehicleTypeLocked) {
+      setState(() {
+        _vehicleTypeLocked = false;
+      });
     }
     final query = _lotNumberController.text.trim();
     _lotSearchDebounce?.cancel();
@@ -284,13 +307,20 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
     _lotNumberController.selection = TextSelection.collapsed(
       offset: _lotNumberController.text.length,
     );
-    if (location.isNotEmpty) {
-      _locationController.text = location;
-    }
     setState(() {
+      _locationLocked = location.isNotEmpty;
+      _vehicleTypeLocked = true;
+      if (location.isNotEmpty) {
+        _locationController.text = location;
+      } else {
+        _locationController.clear();
+      }
       _lotSuggestions = [];
     });
     _isSelectingLot = false;
+    if (location.isEmpty) {
+      _fillLocationFromLot(vehicle);
+    }
   }
 
   String _lotSuggestionLabel(VehicleSummary vehicle) {
@@ -303,6 +333,36 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       return location;
     }
     return vehicle.country.trim();
+  }
+
+  Future<void> _fillLocationFromLot(VehicleSummary vehicle) async {
+    final lotNumber = _resolveLotNumber(vehicle);
+    if (lotNumber == null || lotNumber.isEmpty || !mounted) {
+      return;
+    }
+    final requestId = ++_lotDetailsRequestId;
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final detail = await repository.fetchAuctionLotDetail(lotNumber);
+      if (!mounted || requestId != _lotDetailsRequestId) {
+        return;
+      }
+      final location = detail?.location.trim() ?? '';
+      if (location.isEmpty) {
+        return;
+      }
+      setState(() {
+        _locationController.text = location;
+        _locationLocked = true;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _lotDetailsRequestId) {
+        return;
+      }
+      setState(() {
+        _locationLocked = false;
+      });
+    }
   }
 
   void _calculate() {
@@ -348,6 +408,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       _shippingFee = shippingFee;
       _deliveryCost = deliveryCost.toDouble();
       _finalPrice = bid + auctionFee + shippingFee + deliveryCost;
+      _hasCalculated = true;
     });
   }
 
@@ -362,11 +423,15 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       _bidAmountController.clear();
       _lotSuggestions = [];
       _isFetchingLots = false;
+      _locationLocked = false;
+      _vehicleTypeLocked = false;
+      _lotDetailsRequestId += 1;
       _bid = 0;
       _auctionFee = 0;
       _shippingFee = 0;
       _deliveryCost = 0;
       _finalPrice = 0;
+      _hasCalculated = false;
     });
   }
 }
@@ -493,6 +558,8 @@ class _AuctionCalculatorForm extends StatelessWidget {
     required this.lotHintText,
     required this.onLotSelected,
     required this.locationController,
+    required this.locationReadOnly,
+    required this.vehicleTypeReadOnly,
     required this.bidAmountController,
     required this.showErrors,
     required this.locationInvalid,
@@ -515,6 +582,8 @@ class _AuctionCalculatorForm extends StatelessWidget {
   final String? lotHintText;
   final ValueChanged<VehicleSummary> onLotSelected;
   final TextEditingController locationController;
+  final bool locationReadOnly;
+  final bool vehicleTypeReadOnly;
   final TextEditingController bidAmountController;
   final bool showErrors;
   final bool locationInvalid;
@@ -603,13 +672,14 @@ class _AuctionCalculatorForm extends StatelessWidget {
           CalculatorDropdown(
             value: vehicleType,
             items: const ['1 Regular Car', '2 SUV', '3 Truck', '4 Motorcycle'],
-            onChanged: onVehicleTypeChanged,
+            onChanged: vehicleTypeReadOnly ? null : onVehicleTypeChanged,
           ),
           const SizedBox(height: 16),
           const CalculatorFieldLabel('Location *'),
           const SizedBox(height: 8),
           TextField(
             controller: locationController,
+            readOnly: locationReadOnly,
             decoration: InputDecoration(
               hintText: 'Enter location',
               errorText:
@@ -952,7 +1022,7 @@ class CalculatorDropdown extends StatelessWidget {
 
   final String value;
   final List<String> items;
-  final ValueChanged<String?> onChanged;
+  final ValueChanged<String?>? onChanged;
   final String? errorText;
 
   @override

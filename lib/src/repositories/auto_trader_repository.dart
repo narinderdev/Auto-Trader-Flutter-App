@@ -105,6 +105,10 @@ class AutoTraderRepository {
     return _api.fetchAuctionLotSuggestions(term, limit: limit);
   }
 
+  Future<VehicleSummary?> fetchAuctionLotDetail(String lotNumber) {
+    return _api.fetchAuctionLotDetail(lotNumber);
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,

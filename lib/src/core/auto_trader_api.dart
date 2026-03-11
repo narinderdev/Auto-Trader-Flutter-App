@@ -130,6 +130,15 @@ class AutoTraderApi {
     return _extractVehicleList(payload);
   }
 
+  Future<VehicleSummary?> fetchAuctionLotDetail(String lotNumber) async {
+    final payload = await _getJson('/metadata/auction-lots/$lotNumber');
+    final detail = _extractPrimaryMap(payload);
+    if (detail.isEmpty) {
+      return null;
+    }
+    return VehicleSummary.fromJson(detail);
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,
