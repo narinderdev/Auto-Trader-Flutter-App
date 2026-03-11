@@ -105,8 +105,42 @@ class AutoTraderRepository {
     return _api.fetchAuctionLotSuggestions(term, limit: limit);
   }
 
+  Future<List<LabeledOption>> fetchAuctionCalculatorAuctions() {
+    return _api.fetchAuctionCalculatorAuctions();
+  }
+
+  Future<List<LabeledOption>> fetchAuctionCalculatorCargoTypes() {
+    return _api.fetchAuctionCalculatorCargoTypes();
+  }
+
+  Future<List<LabeledOption>> fetchAuctionCalculatorDestinations() {
+    return _api.fetchAuctionCalculatorDestinations();
+  }
+
   Future<VehicleSummary?> fetchAuctionLotDetail(String lotNumber) {
     return _api.fetchAuctionLotDetail(lotNumber);
+  }
+
+  Future<AuctionCalculatorResult> calculateAuctionCost({
+    required int auctionId,
+    required int destinationId,
+    required int bidAmount,
+    String? lotNumber,
+    int? cargoTypeId,
+    int? locationId,
+    String? location,
+    int? lotId,
+  }) {
+    return _api.calculateAuctionCost(
+      auctionId: auctionId,
+      destinationId: destinationId,
+      bidAmount: bidAmount,
+      lotNumber: lotNumber,
+      cargoTypeId: cargoTypeId,
+      locationId: locationId,
+      location: location,
+      lotId: lotId,
+    );
   }
 
   Future<VehicleDetails> fetchVehicleDetails(

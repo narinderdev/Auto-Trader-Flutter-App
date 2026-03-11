@@ -130,6 +130,21 @@ class AutoTraderApi {
     return _extractVehicleList(payload);
   }
 
+  Future<List<LabeledOption>> fetchAuctionCalculatorAuctions() async {
+    final payload = await _getJson('/auction-calculator/auctions');
+    return LabeledOption.parseList(payload);
+  }
+
+  Future<List<LabeledOption>> fetchAuctionCalculatorCargoTypes() async {
+    final payload = await _getJson('/auction-calculator/cargo-types');
+    return LabeledOption.parseList(payload);
+  }
+
+  Future<List<LabeledOption>> fetchAuctionCalculatorDestinations() async {
+    final payload = await _getJson('/auction-calculator/destinations');
+    return LabeledOption.parseList(payload);
+  }
+
   Future<VehicleSummary?> fetchAuctionLotDetail(String lotNumber) async {
     final payload = await _getJson('/metadata/auction-lots/$lotNumber');
     final detail = _extractPrimaryMap(payload);
@@ -137,6 +152,33 @@ class AutoTraderApi {
       return null;
     }
     return VehicleSummary.fromJson(detail);
+  }
+
+  Future<AuctionCalculatorResult> calculateAuctionCost({
+    required int auctionId,
+    required int destinationId,
+    required int bidAmount,
+    String? lotNumber,
+    int? cargoTypeId,
+    int? locationId,
+    String? location,
+    int? lotId,
+  }) async {
+    final payload = await _postJson(
+      '/auction/calculate',
+      body: <String, dynamic>{
+        'auction_id': auctionId,
+        'destination_id': destinationId,
+        'bid_amount': bidAmount,
+        if (lotId != null) 'lot_id': lotId,
+        if (lotNumber != null && lotNumber.isNotEmpty) 'lot_number': lotNumber,
+        if (cargoTypeId != null) 'cargo_type_id': cargoTypeId,
+        if (locationId != null) 'location_id': locationId,
+        if (location != null && location.isNotEmpty) 'location': location,
+      },
+    );
+    final data = _extractPrimaryMap(payload);
+    return AuctionCalculatorResult.fromJson(data);
   }
 
   Future<VehicleDetails> fetchVehicleDetails(
@@ -176,6 +218,36 @@ class AutoTraderApi {
     }
 
     return jsonDecode(body);
+  }
+
+  Future<dynamic> _postJson(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = _buildUri(path);
+    final request = await _client.postUrl(uri);
+    request.headers.set('Accept', 'application/json');
+    request.headers.set('Content-Type', 'application/json');
+    request.headers.set('ngrok-skip-browser-warning', 'true');
+    if (body != null) {
+      request.add(utf8.encode(jsonEncode(body)));
+    }
+
+    final response = await request.close();
+    final responseBody = await utf8.decodeStream(response);
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException(
+        'Request failed with status ${response.statusCode}',
+        uri: uri,
+      );
+    }
+
+    if (responseBody.trim().isEmpty) {
+      return const <String, dynamic>{};
+    }
+
+    return jsonDecode(responseBody);
   }
 
   Uri _buildUri(String path, {Map<String, String>? query}) {

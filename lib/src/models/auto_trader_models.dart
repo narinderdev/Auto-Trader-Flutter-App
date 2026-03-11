@@ -96,6 +96,49 @@ class LabeledOption {
   }
 }
 
+class AuctionCalculatorResult {
+  const AuctionCalculatorResult({
+    required this.bid,
+    required this.auctionFee,
+    required this.shippingFee,
+    required this.deliveryCost,
+    required this.finalPrice,
+    this.shippingFeeNote,
+  });
+
+  final double bid;
+  final double auctionFee;
+  final double shippingFee;
+  final double deliveryCost;
+  final double finalPrice;
+  final String? shippingFeeNote;
+
+  factory AuctionCalculatorResult.fromJson(Map<String, dynamic> json) {
+    final source = _unwrapData(json);
+    final bid = _pickNumber(source['bid']) ?? 0;
+    final auctionFee = _pickNumber(source['auction_fee'], source['auctionFee']) ?? 0;
+    final shippingFee =
+        _pickNumber(source['shipping_fee'], source['shippingFee']) ?? 0;
+    final deliveryCost =
+        _pickNumber(source['delivery_cost'], source['deliveryCost']) ?? 0;
+    final finalPrice =
+        _pickNumber(source['final_price'], source['finalPrice']) ?? 0;
+    final shippingFeeNote = _pickString(
+      source['shipping_fee_note'],
+      source['shippingFeeNote'],
+    );
+
+    return AuctionCalculatorResult(
+      bid: bid.toDouble(),
+      auctionFee: auctionFee.toDouble(),
+      shippingFee: shippingFee.toDouble(),
+      deliveryCost: deliveryCost.toDouble(),
+      finalPrice: finalPrice.toDouble(),
+      shippingFeeNote: shippingFeeNote,
+    );
+  }
+}
+
 const auctionCountryOption = LabeledOption(label: 'Auction');
 
 List<LabeledOption> countryOptionsWithAuction(List<LabeledOption> options) {
@@ -1941,6 +1984,17 @@ int? _pickInt([
     value8,
   );
   return number?.round();
+}
+
+Map<String, dynamic> _unwrapData(Map<String, dynamic> json) {
+  final data = json['data'];
+  if (data is Map<String, dynamic>) {
+    return data;
+  }
+  if (data is Map) {
+    return Map<String, dynamic>.from(data);
+  }
+  return json;
 }
 
 String? _extractLongNumber(dynamic value) {

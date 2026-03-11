@@ -138,6 +138,7 @@ class _CustomsCalculatorPageState extends State<CustomsCalculatorPage> {
                 otherExpensesController: _otherExpensesController,
                 engineCapacityController: _engineCapacityController,
                 issueDate: _issueDate,
+                isCalculating: _isLoading,
                 showErrors: _showErrors,
                 engineTypeInvalid: engineTypeInvalid,
                 invoiceInvalid: invoiceInvalid,
@@ -522,6 +523,7 @@ class _CustomsVehicleForm extends StatelessWidget {
     required this.otherExpensesController,
     required this.engineCapacityController,
     required this.issueDate,
+    required this.isCalculating,
     required this.showErrors,
     required this.engineTypeInvalid,
     required this.invoiceInvalid,
@@ -546,6 +548,7 @@ class _CustomsVehicleForm extends StatelessWidget {
   final TextEditingController otherExpensesController;
   final TextEditingController engineCapacityController;
   final DateTime? issueDate;
+  final bool isCalculating;
   final bool showErrors;
   final bool engineTypeInvalid;
   final bool invoiceInvalid;
@@ -663,7 +666,7 @@ class _CustomsVehicleForm extends StatelessWidget {
           Row(
             children: [
               FilledButton(
-                onPressed: onCalculate,
+                onPressed: isCalculating ? null : onCalculate,
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF356CF3),
                   foregroundColor: Colors.white,
@@ -672,11 +675,21 @@ class _CustomsVehicleForm extends StatelessWidget {
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
-                child: const Text('Calculate'),
+                child: isCalculating
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Calculate'),
               ),
               const SizedBox(width: 12),
               OutlinedButton(
-                onPressed: onClear,
+                onPressed: isCalculating ? null : onClear,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF353B48),
                   minimumSize: const Size(74, 48),

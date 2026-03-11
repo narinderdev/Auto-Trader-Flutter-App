@@ -18,14 +18,14 @@ class AuctionCalculatorPage extends StatefulWidget {
 }
 
 class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
-  static const _auctionCompanies = ['Copart', 'IAAI', 'Manheim'];
-  static const _vehicleTypes = [
+  static const _defaultAuctionCompanies = ['Copart', 'IAAI'];
+  static const _defaultVehicleTypes = [
     '1 Regular Car',
-    '2 SUV',
-    '3 Truck',
-    '4 Motorcycle',
+    'Oversize Car',
+    'Motorcycle',
+    'Large Motorcycle',
   ];
-  static const _destinations = ['Azerbaijan', 'Georgia', 'Turkey'];
+  static const _defaultDestinations = ['Azerbaijan', 'Georgia'];
 
   final TextEditingController _lotNumberController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
@@ -39,10 +39,15 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   bool _locationLocked = false;
   bool _vehicleTypeLocked = false;
   int _lotDetailsRequestId = 0;
+  bool _isLoadingAuctionMeta = false;
+  String? _selectedLotNumber;
 
-  String _auctionCompany = _auctionCompanies.first;
-  String _vehicleType = _vehicleTypes.first;
-  String _destination = _destinations.first;
+  String _auctionCompany = _defaultAuctionCompanies.first;
+  String _vehicleType = _defaultVehicleTypes.first;
+  String _destination = _defaultDestinations.first;
+  late List<LabeledOption> _auctionOptions;
+  late List<LabeledOption> _cargoTypeOptions;
+  late List<LabeledOption> _destinationOptions;
   double _bid = 0;
   double _auctionFee = 0;
   double _shippingFee = 0;
@@ -50,11 +55,16 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
   double _finalPrice = 0;
   bool _hasCalculated = false;
   bool _showErrors = false;
+  bool _isCalculating = false;
 
   @override
   void initState() {
     super.initState();
+    _auctionOptions = _buildDefaultOptions(_defaultAuctionCompanies);
+    _cargoTypeOptions = _buildDefaultOptions(_defaultVehicleTypes);
+    _destinationOptions = _buildDefaultOptions(_defaultDestinations);
     _lotNumberController.addListener(_onLotQueryChanged);
+    _loadAuctionCalculatorOptions();
   }
 
   @override
@@ -124,8 +134,11 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
             builder: (context, constraints) {
               final form = _AuctionCalculatorForm(
                 auctionCompany: _auctionCompany,
+                auctionCompanies: _auctionOptions.map((o) => o.label).toList(),
                 vehicleType: _vehicleType,
+                vehicleTypes: _cargoTypeOptions.map((o) => o.label).toList(),
                 destination: _destination,
+                destinations: _destinationOptions.map((o) => o.label).toList(),
                 lotNumberController: _lotNumberController,
                 lotNumberFocusNode: _lotNumberFocusNode,
                 lotSuggestions: _lotSuggestions,
@@ -136,6 +149,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
                 locationReadOnly: _locationLocked,
                 vehicleTypeReadOnly: _vehicleTypeLocked,
                 bidAmountController: _bidAmountController,
+                isCalculating: _isCalculating,
                 showErrors: _showErrors,
                 locationInvalid: locationMissing,
                 bidInvalid: bidMissing,
@@ -217,11 +231,136 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
     );
   }
 
+  List<LabeledOption> _buildDefaultOptions(List<String> labels) {
+    return labels
+        .map((label) => LabeledOption(label: label, id: label))
+        .toList();
+  }
+
+  Future<void> _loadAuctionCalculatorOptions() async {
+    if (_isLoadingAuctionMeta) {
+      return;
+    }
+    setState(() {
+      _isLoadingAuctionMeta = true;
+    });
+
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final results = await Future.wait<dynamic>([
+        repository.fetchAuctionCalculatorAuctions(),
+        repository.fetchAuctionCalculatorCargoTypes(),
+        repository.fetchAuctionCalculatorDestinations(),
+      ]);
+      if (!mounted) {
+        return;
+      }
+      final auctions = results[0] as List<LabeledOption>;
+      final cargoTypes = results[1] as List<LabeledOption>;
+      final destinations = results[2] as List<LabeledOption>;
+
+      setState(() {
+        if (auctions.isNotEmpty) {
+          _auctionOptions = auctions;
+          _auctionCompany = _syncSelection(
+            _auctionCompany,
+            auctions,
+            _defaultAuctionCompanies.first,
+          );
+        }
+        if (cargoTypes.isNotEmpty) {
+          _cargoTypeOptions = cargoTypes;
+          _vehicleType = _syncSelection(
+            _vehicleType,
+            cargoTypes,
+            _defaultVehicleTypes.first,
+          );
+        }
+        if (destinations.isNotEmpty) {
+          _destinationOptions = destinations;
+          _destination = _syncSelection(
+            _destination,
+            destinations,
+            _defaultDestinations.first,
+          );
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoadingAuctionMeta = false;
+      });
+    }
+  }
+
+  String _syncSelection(
+    String current,
+    List<LabeledOption> options,
+    String fallback,
+  ) {
+    if (options.any((option) => option.label == current)) {
+      return current;
+    }
+    if (options.isNotEmpty) {
+      return options.first.label;
+    }
+    return fallback;
+  }
+
+  int? _resolveOptionId(List<LabeledOption> options, String label) {
+    LabeledOption? selected;
+    for (final option in options) {
+      if (option.label == label) {
+        selected = option;
+        break;
+      }
+    }
+    selected ??= options.isNotEmpty ? options.first : null;
+    final rawId = selected?.id;
+    if (rawId == null) {
+      return null;
+    }
+    return int.tryParse(rawId);
+  }
+
+  String? _extractLotNumberFromInput(String text) {
+    final matches = RegExp(r'\d{5,}').allMatches(text);
+    for (final match in matches) {
+      final candidate = match.group(0);
+      if (candidate == null) {
+        continue;
+      }
+      if (!_looksLikeYear(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  void _showCalculatorError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _onLotQueryChanged() {
     if (_isSelectingLot) {
       return;
     }
     _lotDetailsRequestId += 1;
+    _selectedLotNumber = null;
     if (_locationLocked) {
       setState(() {
         _locationLocked = false;
@@ -308,6 +447,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       offset: _lotNumberController.text.length,
     );
     setState(() {
+      _selectedLotNumber = _resolveLotNumber(vehicle);
       _locationLocked = location.isNotEmpty;
       _vehicleTypeLocked = true;
       if (location.isNotEmpty) {
@@ -365,10 +505,14 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
     }
   }
 
-  void _calculate() {
-    final bid = double.tryParse(_bidAmountController.text.trim());
-    final locationMissing = _locationController.text.trim().isEmpty;
-    final bidMissing = bid == null || bid <= 0;
+  Future<void> _calculate() async {
+    if (_isCalculating) {
+      return;
+    }
+    final bidValue = double.tryParse(_bidAmountController.text.trim());
+    final locationText = _locationController.text.trim();
+    final locationMissing = locationText.isEmpty;
+    final bidMissing = bidValue == null || bidValue <= 0;
 
     if (locationMissing || bidMissing) {
       setState(() {
@@ -377,47 +521,68 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       return;
     }
 
-    final auctionFee = switch (_auctionCompany) {
-      'Copart' => bid * 0.08 + 120,
-      'IAAI' => bid * 0.075 + 105,
-      _ => bid * 0.07 + 95,
-    };
+    final auctionId = _resolveOptionId(_auctionOptions, _auctionCompany);
+    final destinationId =
+        _resolveOptionId(_destinationOptions, _destination);
+    final cargoTypeId = _resolveOptionId(_cargoTypeOptions, _vehicleType);
 
-    final shippingMultiplier = switch (_vehicleType) {
-      '2 SUV' => 1.22,
-      '3 Truck' => 1.38,
-      '4 Motorcycle' => 0.74,
-      _ => 1.0,
-    };
+    if (auctionId == null || destinationId == null) {
+      _showCalculatorError('Calculator data is unavailable. Try again.');
+      return;
+    }
 
-    final shippingFee = switch (_destination) {
-          'Azerbaijan' => 820.0,
-          'Georgia' => 640.0,
-          _ => 890.0,
-        } *
-        shippingMultiplier;
-
-    final deliveryCost =
-        (_locationController.text.trim().isEmpty ? 0 : 85.0) +
-        (_lotNumberController.text.trim().isEmpty ? 0 : 35.0);
+    final lotNumber =
+        _selectedLotNumber ??
+        _extractLotNumberFromInput(_lotNumberController.text);
+    final bidAmount = bidValue.round();
 
     setState(() {
-      _showErrors = false;
-      _bid = bid;
-      _auctionFee = auctionFee;
-      _shippingFee = shippingFee;
-      _deliveryCost = deliveryCost.toDouble();
-      _finalPrice = bid + auctionFee + shippingFee + deliveryCost;
-      _hasCalculated = true;
+      _isCalculating = true;
     });
+
+    try {
+      final repository = context.read<AutoTraderRepository>();
+      final result = await repository.calculateAuctionCost(
+        auctionId: auctionId,
+        destinationId: destinationId,
+        bidAmount: bidAmount,
+        lotNumber: lotNumber,
+        cargoTypeId: cargoTypeId,
+        location: locationText,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showErrors = false;
+        _bid = result.bid;
+        _auctionFee = result.auctionFee;
+        _shippingFee = result.shippingFee;
+        _deliveryCost = result.deliveryCost;
+        _finalPrice = result.finalPrice;
+        _hasCalculated = true;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showCalculatorError('Unable to calculate. Please try again.');
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isCalculating = false;
+      });
+    }
   }
 
   void _clear() {
     setState(() {
       _showErrors = false;
-      _auctionCompany = _auctionCompanies.first;
-      _vehicleType = _vehicleTypes.first;
-      _destination = _destinations.first;
+      _auctionCompany = _defaultAuctionCompanies.first;
+      _vehicleType = _defaultVehicleTypes.first;
+      _destination = _defaultDestinations.first;
       _lotNumberController.clear();
       _locationController.clear();
       _bidAmountController.clear();
@@ -426,12 +591,14 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
       _locationLocked = false;
       _vehicleTypeLocked = false;
       _lotDetailsRequestId += 1;
+      _selectedLotNumber = null;
       _bid = 0;
       _auctionFee = 0;
       _shippingFee = 0;
       _deliveryCost = 0;
       _finalPrice = 0;
       _hasCalculated = false;
+      _isCalculating = false;
     });
   }
 }
@@ -549,8 +716,11 @@ class CalculatorTab extends StatelessWidget {
 class _AuctionCalculatorForm extends StatelessWidget {
   const _AuctionCalculatorForm({
     required this.auctionCompany,
+    required this.auctionCompanies,
     required this.vehicleType,
+    required this.vehicleTypes,
     required this.destination,
+    required this.destinations,
     required this.lotNumberController,
     required this.lotNumberFocusNode,
     required this.lotSuggestions,
@@ -561,6 +731,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
     required this.locationReadOnly,
     required this.vehicleTypeReadOnly,
     required this.bidAmountController,
+    required this.isCalculating,
     required this.showErrors,
     required this.locationInvalid,
     required this.bidInvalid,
@@ -573,8 +744,11 @@ class _AuctionCalculatorForm extends StatelessWidget {
   });
 
   final String auctionCompany;
+  final List<String> auctionCompanies;
   final String vehicleType;
+  final List<String> vehicleTypes;
   final String destination;
+  final List<String> destinations;
   final TextEditingController lotNumberController;
   final FocusNode lotNumberFocusNode;
   final List<VehicleSummary> lotSuggestions;
@@ -585,6 +759,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
   final bool locationReadOnly;
   final bool vehicleTypeReadOnly;
   final TextEditingController bidAmountController;
+  final bool isCalculating;
   final bool showErrors;
   final bool locationInvalid;
   final bool bidInvalid;
@@ -626,7 +801,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
           const SizedBox(height: 8),
           CalculatorDropdown(
             value: auctionCompany,
-            items: const ['Copart', 'IAAI', 'Manheim'],
+            items: auctionCompanies,
             onChanged: onAuctionCompanyChanged,
           ),
           const SizedBox(height: 16),
@@ -671,7 +846,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
           const SizedBox(height: 8),
           CalculatorDropdown(
             value: vehicleType,
-            items: const ['1 Regular Car', '2 SUV', '3 Truck', '4 Motorcycle'],
+            items: vehicleTypes,
             onChanged: vehicleTypeReadOnly ? null : onVehicleTypeChanged,
           ),
           const SizedBox(height: 16),
@@ -703,7 +878,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
           const SizedBox(height: 8),
           CalculatorDropdown(
             value: destination,
-            items: const ['Azerbaijan', 'Georgia', 'Turkey'],
+            items: destinations,
             onChanged: onDestinationChanged,
           ),
           const SizedBox(height: 18),
@@ -711,7 +886,7 @@ class _AuctionCalculatorForm extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: onCalculate,
+                  onPressed: isCalculating ? null : onCalculate,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF356CF3),
                     foregroundColor: Colors.white,
@@ -720,13 +895,23 @@ class _AuctionCalculatorForm extends StatelessWidget {
                       borderRadius: BorderRadius.circular(5),
                     ),
                   ),
-                  child: const Text('Calculate'),
+                  child: isCalculating
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Calculate'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: onClear,
+                  onPressed: isCalculating ? null : onClear,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF353B48),
                     minimumSize: const Size.fromHeight(50),
