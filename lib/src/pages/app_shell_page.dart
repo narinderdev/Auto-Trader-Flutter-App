@@ -9,6 +9,7 @@ import 'home_page.dart';
 import 'notifications_page.dart';
 import 'profile_page.dart';
 import 'search_page.dart';
+import 'vehicle_details_page.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -81,6 +82,27 @@ class _AppShellPageState extends State<AppShellPage> {
     ];
   }
 
+  void _openVehicleDetails(VehicleSummary vehicle) {
+    setState(() {
+      _currentIndex = 0;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _homeNavKey.currentState;
+      if (navigator == null) {
+        return;
+      }
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => VehicleDetailsPage(
+            vehicleId: vehicle.id,
+            initialVehicle: vehicle,
+            embedded: true,
+          ),
+        ),
+      );
+    });
+  }
+
   void _showSearchOverlay(BuildContext context) {
     showGeneralDialog<void>(
       context: context,
@@ -98,6 +120,7 @@ class _AppShellPageState extends State<AppShellPage> {
             _currentIndex = 2;
           });
         },
+        onOpenDetails: _openVehicleDetails,
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curve = CurvedAnimation(
@@ -301,10 +324,15 @@ class _AppHeaderState extends State<_AppHeader> {
 }
 
 class _SearchOverlay extends StatefulWidget {
-  const _SearchOverlay({required this.onClose, required this.onSubmit});
+  const _SearchOverlay({
+    required this.onClose,
+    required this.onSubmit,
+    required this.onOpenDetails,
+  });
 
   final VoidCallback onClose;
   final ValueChanged<VehicleSearchFilters> onSubmit;
+  final ValueChanged<VehicleSummary> onOpenDetails;
 
   @override
   State<_SearchOverlay> createState() => _SearchOverlayState();
@@ -313,16 +341,10 @@ class _SearchOverlay extends StatefulWidget {
 class _SearchOverlayState extends State<_SearchOverlay> {
   final TextEditingController _queryController = TextEditingController();
   final ScrollController _suggestionsScrollController = ScrollController();
-  final LayerLink _searchFieldLink = LayerLink();
-  final GlobalKey _searchFieldKey = GlobalKey();
-  final GlobalKey _auctionCheckboxKey = GlobalKey();
-  final GlobalKey _searchButtonKey = GlobalKey();
-  final GlobalKey _controlsRowKey = GlobalKey();
-  OverlayEntry? _suggestionsOverlay;
-  bool _suppressSuggestions = false;
   bool _auction = true;
   bool _other = false;
   bool _isSubmitting = false;
+  bool _showResultsModal = false;
   String _queryText = '';
   bool _isLoading = false;
   List<_SearchSuggestion> _results = const [];
@@ -341,7 +363,6 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     _queryController.removeListener(_handleQueryChanged);
     _queryController.dispose();
     _suggestionsScrollController.dispose();
-    _removeSuggestionsOverlay();
     super.dispose();
   }
 
@@ -354,11 +375,16 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       _queryText = next;
       _isLoading = next.trim().isNotEmpty;
       _results = const [];
-      _suppressSuggestions = false;
+      _showResultsModal = next.trim().isNotEmpty;
     });
 
     _suggestionTimer?.cancel();
     if (next.trim().isEmpty) {
+      setState(() {
+        _showResultsModal = false;
+        _isLoading = false;
+        _results = const [];
+      });
       return;
     }
     _suggestionTimer = Timer(const Duration(milliseconds: 500), () {
@@ -436,418 +462,344 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     }
     setState(() {
       _isSubmitting = true;
+      _showResultsModal = false;
     });
     final filters = VehicleSearchFilters(query: rawQuery);
     widget.onSubmit(filters);
-  }
-
-  void _removeSuggestionsOverlay() {
-    _suggestionsOverlay?.remove();
-    _suggestionsOverlay = null;
-  }
-
-  void _syncSuggestionsOverlay({required bool hasQuery}) {
-    if (!mounted) {
-      return;
-    }
-    if (_suppressSuggestions && !_isLoading) {
-      _removeSuggestionsOverlay();
-      return;
-    }
-    if (!hasQuery) {
-      _removeSuggestionsOverlay();
-      return;
-    }
-    if (_suggestionsOverlay == null) {
-      _suggestionsOverlay = OverlayEntry(
-        builder: (context) => _buildSuggestionsOverlay(context),
-      );
-      Overlay.of(context).insert(_suggestionsOverlay!);
-    } else {
-      _suggestionsOverlay!.markNeedsBuild();
-    }
-  }
-
-  Widget _buildSuggestionsOverlay(BuildContext context) {
-    final suggestions = _results;
-    final renderBox =
-        _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
-    final fieldWidth = renderBox?.size.width ?? 260;
-    final fieldOffset = renderBox?.localToGlobal(Offset.zero);
-    final checkboxBox =
-        _auctionCheckboxKey.currentContext?.findRenderObject() as RenderBox?;
-    final searchButtonBox =
-        _searchButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    final controlsBox =
-        _controlsRowKey.currentContext?.findRenderObject() as RenderBox?;
-    final checkboxOffset = checkboxBox?.localToGlobal(Offset.zero);
-    final searchButtonOffset = searchButtonBox?.localToGlobal(Offset.zero);
-    final checkboxBottom = (checkboxOffset != null && checkboxBox != null)
-        ? checkboxOffset.dy + checkboxBox.size.height
-        : null;
-    final searchButtonBottom =
-        (searchButtonOffset != null && searchButtonBox != null)
-            ? searchButtonOffset.dy + searchButtonBox.size.height
-            : null;
-    final controlsOffset = controlsBox?.localToGlobal(Offset.zero);
-    final controlsBottom =
-        (controlsOffset != null && controlsBox != null)
-            ? controlsOffset.dy + controlsBox.size.height
-            : null;
-    final preferredLeft = checkboxOffset?.dx;
-    final preferredRight = searchButtonOffset?.dx;
-    final widthBetween = preferredLeft != null && preferredRight != null
-        ? (preferredRight - preferredLeft - 8)
-        : null;
-    final overlayWidth = (widthBetween != null && widthBetween > 120)
-        ? widthBetween.toDouble()
-        : (fieldWidth < 220 ? fieldWidth : 220).toDouble();
-    final offsetX =
-        (preferredLeft != null && fieldOffset != null)
-            ? (preferredLeft - fieldOffset.dx)
-            : 0.0;
-    final fieldBottom =
-        (fieldOffset?.dy ?? 0) + (renderBox?.size.height ?? 0);
-    final offsetY =
-        controlsBottom != null ? (controlsBottom - fieldBottom + 8) : 8.0;
-    final screenHeight = MediaQuery.of(context).size.height;
-    const bottomGap = 64.0;
-    final overlayTop =
-        fieldBottom + offsetY;
-    final availableHeight =
-        (screenHeight - overlayTop - bottomGap).clamp(120.0, screenHeight);
-    const itemExtent = 56.0;
-    final maxListHeight = (itemExtent * 8) + 8;
-    final effectiveMaxHeight =
-        maxListHeight < availableHeight ? maxListHeight : availableHeight;
-    final listHeight = suggestions.isEmpty
-        ? 48.0
-        : (itemExtent * suggestions.length + 8).clamp(48.0, effectiveMaxHeight);
-    return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: false,
-        child: CompositedTransformFollower(
-          link: _searchFieldLink,
-          showWhenUnlinked: false,
-          targetAnchor: Alignment.bottomLeft,
-          followerAnchor: Alignment.topLeft,
-          offset: Offset(offsetX, offsetY),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: overlayWidth,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(maxHeight: availableHeight),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: const Color(0xFFE4E7F4)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 12,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: _isLoading
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Text(
-                        'Loading suggestions...',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF6B7280),
-                            ),
-                      ),
-                    )
-                  : suggestions.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Text(
-                            'No results found',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: const Color(0xFF6B7280),
-                                ),
-                          ),
-                        )
-                      : SizedBox(
-                          height: listHeight,
-                          child: ScrollbarTheme(
-                            data: const ScrollbarThemeData(
-                              thumbVisibility: WidgetStatePropertyAll(true),
-                              trackVisibility: WidgetStatePropertyAll(true),
-                              thickness: WidgetStatePropertyAll(6),
-                              radius: Radius.circular(6),
-                              trackColor:
-                                  WidgetStatePropertyAll(Color(0xFFE5E7EB)),
-                              thumbColor:
-                                  WidgetStatePropertyAll(Color(0xFF9CA3AF)),
-                            ),
-                            child: Scrollbar(
-                              controller: _suggestionsScrollController,
-                              child: ListView.builder(
-                                padding: const EdgeInsets.only(
-                                  right: 8,
-                                  bottom: 8,
-                                ),
-                                primary: false,
-                                controller: _suggestionsScrollController,
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                itemCount: suggestions.length,
-                                itemBuilder: (context, index) {
-                                  final item = suggestions[index];
-                                  final isPrimary =
-                                      item.type == _SearchSuggestionType.vin ||
-                                          item.type ==
-                                              _SearchSuggestionType.lot;
-                                  return InkWell(
-                                    onTap: () {
-                                      _suggestionTimer?.cancel();
-                                      if (_isSubmitting) {
-                                        return;
-                                      }
-                                      _queryController.text = item.query;
-                                      _queryController.selection =
-                                          TextSelection.collapsed(
-                                        offset: item.query.length,
-                                      );
-                                      setState(() {
-                                        _queryText = item.query;
-                                        _results = const [];
-                                        _isLoading = false;
-                                        _suppressSuggestions = true;
-                                      });
-                                      _removeSuggestionsOverlay();
-                                      _submitSearch(overrideQuery: item.query);
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        12,
-                                        8,
-                                        12,
-                                        8,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.title,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: isPrimary
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w500,
-                                                  fontSize: isPrimary ? 14 : 13,
-                                                  color:
-                                                      const Color(0xFF111827),
-                                                ),
-                                          ),
-                                          if (isPrimary &&
-                                              item.subtitle.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              item.subtitle,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                    color: const Color(
-                                                      0xFF6B7280,
-                                                    ),
-                                                  ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final hasQuery = _queryText.trim().isNotEmpty;
     final suggestions = _results;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      _syncSuggestionsOverlay(hasQuery: hasQuery);
-    });
 
     return SafeArea(
       child: Material(
         color: Colors.transparent,
-        child: Align(
-          alignment: Alignment.center,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 8),
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x1A000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CompositedTransformTarget(
-                        link: _searchFieldLink,
-                        child: SizedBox(
-                          key: _searchFieldKey,
-                          height: 44,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.search,
-                                    color: Color(0xFF9CA3AF),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _queryController,
-                                      decoration: const InputDecoration(
-                                        hintText:
-                                            'Search by make, model, lot, or VIN',
-                                        border: InputBorder.none,
-                                        enabledBorder: InputBorder.none,
-                                        focusedBorder: InputBorder.none,
-                                        isDense: true,
-                                      ),
-                                      onSubmitted: (_) => _submitSearch(),
-                                    ),
-                                  ),
-                                ],
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 44,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        key: _controlsRowKey,
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              key: _auctionCheckboxKey,
-                              value: _auction,
-                              onChanged: (value) {
-                                setState(() {
-                                  _auction = value ?? false;
-                                  if (_auction) {
-                                    _other = false;
-                                  }
-                                });
-                                if (_queryText.trim().isNotEmpty) {
-                                  _loadSuggestions(_queryText.trim());
-                                }
-                              },
-                              activeColor: const Color(0xFFD21D39),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            const Text('Auction'),
-                            const SizedBox(width: 8),
-                            Checkbox(
-                              value: _other,
-                              onChanged: (value) {
-                                setState(() {
-                                  _other = value ?? false;
-                                  if (_other) {
-                                    _auction = false;
-                                  }
-                                });
-                                if (_queryText.trim().isNotEmpty) {
-                                  _loadSuggestions(_queryText.trim());
-                                }
-                              },
-                              activeColor: const Color(0xFFD21D39),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            const Text('Other'),
-                            const Spacer(),
-                          FilledButton(
-                            key: _searchButtonKey,
-                            onPressed:
-                                (hasQuery && !_isSubmitting) ? _submitSearch : null,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: hasQuery
-                                  ? const Color(0xFFD21D39)
-                                  : const Color(0xFFE5E7EB),
-                                foregroundColor: hasQuery
-                                    ? Colors.white
-                                    : const Color(0xFF6B7280),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.search,
+                                      color: Color(0xFF9CA3AF),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _queryController,
+                                        decoration: const InputDecoration(
+                                          hintText:
+                                              'Search by make, model, lot, or VIN',
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          isDense: true,
+                                        ),
+                                        onSubmitted: (_) => _submitSearch(),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            child: _isSubmitting
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Search'),
+                            ),
                           ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              onPressed: widget.onClose,
-                              icon: const Icon(Icons.close_rounded),
-                              color: const Color(0xFF9CA3AF),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _auction,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _auction = value ?? false;
+                                    if (_auction) {
+                                      _other = false;
+                                    }
+                                  });
+                                  if (_queryText.trim().isNotEmpty) {
+                                    _loadSuggestions(_queryText.trim());
+                                  }
+                                },
+                                activeColor: const Color(0xFFD21D39),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const Text('Auction'),
+                              const SizedBox(width: 8),
+                              Checkbox(
+                                value: _other,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _other = value ?? false;
+                                    if (_other) {
+                                      _auction = false;
+                                    }
+                                  });
+                                  if (_queryText.trim().isNotEmpty) {
+                                    _loadSuggestions(_queryText.trim());
+                                  }
+                                },
+                                activeColor: const Color(0xFFD21D39),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const Text('Other'),
+                              const Spacer(),
+                              FilledButton(
+                                onPressed: (hasQuery && !_isSubmitting)
+                                    ? _submitSearch
+                                    : null,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: hasQuery
+                                      ? const Color(0xFFD21D39)
+                                      : const Color(0xFFE5E7EB),
+                                  foregroundColor: hasQuery
+                                      ? Colors.white
+                                      : const Color(0xFF6B7280),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text('Search'),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: widget.onClose,
+                                icon: const Icon(Icons.close_rounded),
+                                color: const Color(0xFF9CA3AF),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_showResultsModal)
+              const Positioned.fill(
+                child: ModalBarrier(
+                  dismissible: false,
+                  color: Colors.transparent,
+                ),
+              ),
+            if (_showResultsModal)
+              Positioned.fill(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 360,
+                      minWidth: 260,
+                      maxHeight:
+                          MediaQuery.of(context).size.height * 0.65,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Results',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showResultsModal = false;
+                                    });
+                                  },
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 16),
+                            Expanded(
+                              child: _isLoading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : suggestions.isEmpty
+                                      ? const Center(
+                                          child: Text(
+                                            'No results found',
+                                            style: TextStyle(
+                                              color: Color(0xFF6B7280),
+                                            ),
+                                          ),
+                                        )
+                                      : Scrollbar(
+                                          controller:
+                                              _suggestionsScrollController,
+                                          child: ListView.builder(
+                                            controller:
+                                                _suggestionsScrollController,
+                                            itemCount: suggestions.length,
+                                            itemBuilder: (context, index) {
+                                              final item = suggestions[index];
+                                              final isPrimary =
+                                                  item.type ==
+                                                          _SearchSuggestionType.vin ||
+                                                      item.type ==
+                                                          _SearchSuggestionType.lot;
+                                              return InkWell(
+                                                onTap: () {
+                                                  _suggestionTimer?.cancel();
+                                                  if (_isSubmitting) {
+                                                    return;
+                                                  }
+                                                  widget.onClose();
+                                                  _queryController.text =
+                                                      item.query;
+                                                  _queryController.selection =
+                                                      TextSelection.collapsed(
+                                                    offset: item.query.length,
+                                                  );
+                                                  setState(() {
+                                                    _queryText = item.query;
+                                                    _results = const [];
+                                                    _isLoading = false;
+                                                    _showResultsModal = false;
+                                                  });
+                                                  widget.onOpenDetails(
+                                                    item.vehicle,
+                                                  );
+                                                },
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    vertical: 8,
+                                                    horizontal: 4,
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        item.title,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              fontWeight:
+                                                                  isPrimary
+                                                                      ? FontWeight
+                                                                          .w600
+                                                                      : FontWeight
+                                                                          .w500,
+                                                              fontSize:
+                                                                  isPrimary
+                                                                      ? 14
+                                                                      : 13,
+                                                              color:
+                                                                  const Color(
+                                                                0xFF111827,
+                                                              ),
+                                                            ),
+                                                      ),
+                                                      if (isPrimary &&
+                                                          item.subtitle
+                                                              .isNotEmpty)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                            top: 2,
+                                                          ),
+                                                          child: Text(
+                                                            item.subtitle,
+                                                            style: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .bodySmall
+                                                                ?.copyWith(
+                                                                  color:
+                                                                      const Color(
+                                                                    0xFF6B7280,
+                                                                  ),
+                                                                ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
                             ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -968,12 +920,14 @@ class _SearchSuggestion {
     required this.subtitle,
     required this.query,
     required this.type,
+    required this.vehicle,
   });
 
   final String title;
   final String subtitle;
   final String query;
   final _SearchSuggestionType type;
+  final VehicleSummary vehicle;
 
   static List<_SearchSuggestion> fromVehicle(VehicleSummary vehicle) {
     String cleanText(String value) {
@@ -1039,6 +993,7 @@ class _SearchSuggestion {
           subtitle: subtitleText ?? '',
           query: query,
           type: type,
+          vehicle: vehicle,
         ),
       );
     }
