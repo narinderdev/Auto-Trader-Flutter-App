@@ -314,7 +314,11 @@ class _SearchOverlayState extends State<_SearchOverlay> {
   final TextEditingController _queryController = TextEditingController();
   final ScrollController _suggestionsScrollController = ScrollController();
   final LayerLink _searchFieldLink = LayerLink();
+  final GlobalKey _searchFieldKey = GlobalKey();
+  final GlobalKey _auctionCheckboxKey = GlobalKey();
+  final GlobalKey _searchButtonKey = GlobalKey();
   OverlayEntry? _suggestionsOverlay;
+  bool _suppressSuggestions = false;
   bool _auction = true;
   bool _other = false;
   String _queryText = '';
@@ -348,6 +352,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       _queryText = next;
       _isLoading = next.trim().isNotEmpty;
       _results = const [];
+      _suppressSuggestions = false;
     });
 
     _suggestionTimer?.cancel();
@@ -414,6 +419,10 @@ class _SearchOverlayState extends State<_SearchOverlay> {
     if (!mounted) {
       return;
     }
+    if (_suppressSuggestions && !_isLoading) {
+      _removeSuggestionsOverlay();
+      return;
+    }
     if (!hasQuery) {
       _removeSuggestionsOverlay();
       return;
@@ -422,7 +431,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
       _suggestionsOverlay = OverlayEntry(
         builder: (context) => _buildSuggestionsOverlay(context),
       );
-      Overlay.of(context, rootOverlay: true).insert(_suggestionsOverlay!);
+      Overlay.of(context).insert(_suggestionsOverlay!);
     } else {
       _suggestionsOverlay!.markNeedsBuild();
     }
@@ -430,6 +439,38 @@ class _SearchOverlayState extends State<_SearchOverlay> {
 
   Widget _buildSuggestionsOverlay(BuildContext context) {
     final suggestions = _results;
+    final renderBox =
+        _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final fieldWidth = renderBox?.size.width ?? 260;
+    final fieldOffset = renderBox?.localToGlobal(Offset.zero);
+    final checkboxBox =
+        _auctionCheckboxKey.currentContext?.findRenderObject() as RenderBox?;
+    final searchButtonBox =
+        _searchButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final checkboxOffset = checkboxBox?.localToGlobal(Offset.zero);
+    final searchButtonOffset = searchButtonBox?.localToGlobal(Offset.zero);
+    final preferredLeft = checkboxOffset?.dx;
+    final preferredRight = searchButtonOffset?.dx;
+    final widthBetween = preferredLeft != null && preferredRight != null
+        ? (preferredRight - preferredLeft - 8)
+        : null;
+    final overlayWidth = (widthBetween != null && widthBetween > 120)
+        ? widthBetween.toDouble()
+        : (fieldWidth < 220 ? fieldWidth : 220).toDouble();
+    final offsetX =
+        (preferredLeft != null && fieldOffset != null)
+            ? (preferredLeft - fieldOffset.dx)
+            : 0.0;
+    final fieldBottom =
+        (fieldOffset?.dy ?? 0) + (renderBox?.size.height ?? 0);
+    final screenHeight = MediaQuery.of(context).size.height;
+    const bottomGap = 64.0;
+    final availableHeight =
+        (screenHeight - fieldBottom - bottomGap).clamp(120.0, screenHeight);
+    const itemExtent = 56.0;
+    final listHeight = suggestions.isEmpty
+        ? 48.0
+        : (itemExtent * suggestions.length).clamp(48.0, availableHeight);
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: false,
@@ -438,12 +479,12 @@ class _SearchOverlayState extends State<_SearchOverlay> {
           showWhenUnlinked: false,
           targetAnchor: Alignment.bottomLeft,
           followerAnchor: Alignment.topLeft,
-          offset: const Offset(0, 8),
+          offset: Offset(offsetX, 8),
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 240,
-              constraints: const BoxConstraints(maxHeight: 220),
+              width: overlayWidth,
+              constraints: BoxConstraints(maxHeight: availableHeight),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(5),
@@ -486,7 +527,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                           ),
                         )
                       : SizedBox(
-                          height: 220,
+                          height: listHeight,
                           child: ScrollbarTheme(
                             data: const ScrollbarThemeData(
                               thumbVisibility: WidgetStatePropertyAll(true),
@@ -514,14 +555,19 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                   final item = suggestions[index];
                                   return InkWell(
                                     onTap: () {
+                                      _suggestionTimer?.cancel();
                                       _queryController.text = item.query;
                                       _queryController.selection =
                                           TextSelection.collapsed(
                                         offset: item.query.length,
                                       );
-                                      _submitSearch(
-                                        overrideQuery: item.query,
-                                      );
+                                      setState(() {
+                                        _queryText = item.query;
+                                        _results = const [];
+                                        _isLoading = false;
+                                        _suppressSuggestions = true;
+                                      });
+                                      _removeSuggestionsOverlay();
                                     },
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
@@ -615,28 +661,40 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                       CompositedTransformTarget(
                         link: _searchFieldLink,
                         child: SizedBox(
-                          height: 40,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.search,
-                                color: Color(0xFF9CA3AF),
-                              ),
-                              Expanded(
-                                child: TextField(
-                                  controller: _queryController,
-                                  decoration: const InputDecoration(
-                                    hintText:
-                                        'Search by make, model, lot, or VIN',
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    isDense: true,
+                          key: _searchFieldKey,
+                          height: 44,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.search,
+                                    color: Color(0xFF9CA3AF),
                                   ),
-                                  onSubmitted: (_) => _submitSearch(),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _queryController,
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'Search by make, model, lot, or VIN',
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        isDense: true,
+                                      ),
+                                      onSubmitted: (_) => _submitSearch(),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -644,6 +702,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                       Row(
                         children: [
                           Checkbox(
+                            key: _auctionCheckboxKey,
                             value: _auction,
                             onChanged: (value) {
                               setState(() {
@@ -682,6 +741,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                           const Text('Other'),
                           const Spacer(),
                           FilledButton(
+                            key: _searchButtonKey,
                             onPressed: hasQuery ? _submitSearch : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: hasQuery
