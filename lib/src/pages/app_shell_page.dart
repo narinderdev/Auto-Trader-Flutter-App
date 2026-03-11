@@ -536,6 +536,7 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: const Color(0xFFE4E7F4)),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x1A000000),
@@ -577,66 +578,99 @@ class _SearchOverlayState extends State<_SearchOverlay> {
                                               ),
                                         ),
                                       )
-                                    : ListView.builder(
-                                        padding: EdgeInsets.zero,
-                                        shrinkWrap: true,
-                                        itemCount: suggestions.length,
-                                        itemBuilder: (context, index) {
-                                          final item = suggestions[index];
-                                          return InkWell(
-                                            onTap: () {
-                                              _queryController.text = item.query;
-                                              _queryController.selection =
-                                                  TextSelection.collapsed(
-                                                offset: item.query.length,
-                                              );
-                                              _submitSearch(
-                                                overrideQuery: item.query,
+                                    : ScrollbarTheme(
+                                        data: const ScrollbarThemeData(
+                                          thumbVisibility:
+                                              WidgetStatePropertyAll(true),
+                                          trackVisibility:
+                                              WidgetStatePropertyAll(true),
+                                          thickness: WidgetStatePropertyAll(6),
+                                          radius: Radius.circular(6),
+                                          trackColor: WidgetStatePropertyAll(
+                                            Color(0xFFE5E7EB),
+                                          ),
+                                          thumbColor: WidgetStatePropertyAll(
+                                            Color(0xFF9CA3AF),
+                                          ),
+                                        ),
+                                        child: Scrollbar(
+                                          thumbVisibility: true,
+                                          trackVisibility: true,
+                                          thickness: 6,
+                                          radius: Radius.circular(6),
+                                          child: ListView.builder(
+                                            padding: EdgeInsets.zero,
+                                            primary: false,
+                                            physics:
+                                                const ClampingScrollPhysics(),
+                                            itemCount: suggestions.length,
+                                            itemBuilder: (context, index) {
+                                              final item = suggestions[index];
+                                              return InkWell(
+                                                onTap: () {
+                                                  _queryController.text =
+                                                      item.query;
+                                                  _queryController.selection =
+                                                      TextSelection.collapsed(
+                                                    offset: item.query.length,
+                                                  );
+                                                  _submitSearch(
+                                                    overrideQuery: item.query,
+                                                  );
+                                                },
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                    12,
+                                                    10,
+                                                    12,
+                                                    10,
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        item.title,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color:
+                                                                  const Color(
+                                                                0xFF111827,
+                                                              ),
+                                                            ),
+                                                      ),
+                                                      if (item.subtitle
+                                                          .isNotEmpty) ...[
+                                                        const SizedBox(
+                                                          height: 2,
+                                                        ),
+                                                        Text(
+                                                          item.subtitle,
+                                                          style: Theme.of(context)
+                                                              .textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                                color:
+                                                                    const Color(
+                                                                  0xFF6B7280,
+                                                                ),
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
                                               );
                                             },
-                                            child: Padding(
-                                              padding: const EdgeInsets.fromLTRB(
-                                                12,
-                                                10,
-                                                12,
-                                                10,
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    item.title,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodyMedium
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: const Color(
-                                                            0xFF111827,
-                                                          ),
-                                                        ),
-                                                  ),
-                                                  if (item.subtitle.isNotEmpty) ...[
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      item.subtitle,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodySmall
-                                                          ?.copyWith(
-                                                            color: const Color(
-                                                              0xFF6B7280,
-                                                            ),
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                          ),
+                                        ),
                                       ),
                           ),
                         ),
