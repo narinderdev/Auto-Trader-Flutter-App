@@ -98,6 +98,13 @@ class AutoTraderRepository {
     return _api.searchVehiclesByQuery(queryText, page: page, limit: limit);
   }
 
+  Future<List<VehicleSummary>> fetchAuctionLotSuggestions(
+    String term, {
+    int limit = 20,
+  }) {
+    return _api.fetchAuctionLotSuggestions(term, limit: limit);
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,

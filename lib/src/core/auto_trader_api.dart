@@ -112,6 +112,24 @@ class AutoTraderApi {
     );
   }
 
+  Future<List<VehicleSummary>> fetchAuctionLotSuggestions(
+    String term, {
+    int limit = 20,
+  }) async {
+    final payload = await _getJson(
+      '/metadata/auction-lots',
+      query: <String, String>{
+        'suggest': 'true',
+        'suggest_limit': '$limit',
+        'sort_by': 'date',
+        'sort_order': 'asc',
+        'searchByText': term,
+        'search': term,
+      },
+    );
+    return _extractVehicleList(payload);
+  }
+
   Future<VehicleDetails> fetchVehicleDetails(
     String id, {
     VehicleSummary? fallback,

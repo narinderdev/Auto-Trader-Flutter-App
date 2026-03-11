@@ -250,10 +250,9 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
 
     try {
       final repository = context.read<AutoTraderRepository>();
-      final response = await repository.searchVehiclesByQuery(
+      final response = await repository.fetchAuctionLotSuggestions(
         query,
-        page: 1,
-        limit: 6,
+        limit: 8,
       );
       if (!mounted) {
         return;
@@ -263,7 +262,7 @@ class _AuctionCalculatorPageState extends State<AuctionCalculatorPage> {
         return;
       }
       setState(() {
-        _lotSuggestions = response.vehicles;
+        _lotSuggestions = response;
         _isFetchingLots = false;
       });
     } catch (_) {
@@ -889,6 +888,10 @@ String? _resolveLotNumber(VehicleSummary vehicle) {
   if (lot.isNotEmpty) {
     return lot;
   }
+  final idLot = _extractLotFromId(vehicle.id);
+  if (idLot != null) {
+    return idLot;
+  }
   final title = vehicle.title;
   for (final match in RegExp(r'\d{5,}').allMatches(title)) {
     final candidate = match.group(0);
@@ -898,6 +901,14 @@ String? _resolveLotNumber(VehicleSummary vehicle) {
     if (!_looksLikeYear(candidate)) {
       return candidate;
     }
+  }
+  return null;
+}
+
+String? _extractLotFromId(String id) {
+  final trimmed = id.trim();
+  if (RegExp(r'^\d{5,}$').hasMatch(trimmed)) {
+    return trimmed;
   }
   return null;
 }
